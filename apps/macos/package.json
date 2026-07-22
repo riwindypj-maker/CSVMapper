@@ -1,0 +1,47 @@
+{
+  "name": "CSVMapper",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "android": "react-native run-android",
+    "build:macos:debug": "react-native build-macos --mode Debug",
+    "build:macos:release": "react-native build-macos --mode Release",
+    "format:check": "prettier --check App.tsx index.js jest.config.js metro.config.js babel.config.js scripts/**/*.cjs",
+    "ios": "react-native run-ios",
+    "lint": "eslint .",
+    "macos": "react-native run-macos",
+    "postinstall": "node scripts/patch-react-native-macos.cjs",
+    "start": "react-native start",
+    "test": "jest",
+    "test:core": "bash scripts/test-processing-core.sh",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "19.1.4",
+    "react-native": "0.81.6",
+    "react-native-macos": "0.81.9"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.7",
+    "@babel/preset-env": "7.29.7",
+    "@babel/runtime": "7.29.7",
+    "@react-native-community/cli": "20.0.0",
+    "@react-native-community/cli-platform-android": "20.0.0",
+    "@react-native-community/cli-platform-ios": "20.0.0",
+    "@react-native/babel-preset": "0.81.6",
+    "@react-native/eslint-config": "0.81.6",
+    "@react-native/metro-config": "0.81.6",
+    "@react-native/typescript-config": "0.81.6",
+    "@types/jest": "29.5.14",
+    "@types/react": "19.2.17",
+    "@types/react-test-renderer": "19.1.0",
+    "eslint": "8.57.1",
+    "jest": "29.7.0",
+    "prettier": "2.8.8",
+    "react-test-renderer": "19.1.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
