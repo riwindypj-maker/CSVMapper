@@ -43,14 +43,6 @@ struct ParsedCsv {
   std::vector<Record> records;
 };
 
-// 解析エラーの詳細。
-struct CsvParseError {
-  std::string message;
-  std::size_t logicalRecord = 0;
-  std::size_t startPhysicalLine = 0;
-  std::size_t endPhysicalLine = 0;
-};
-
 // 与えられたバイト列の文字コードを判定する。
 // 自動判定の場合は強力な UTF-8 検証を行い、失敗したら Windows-31J で検証する。
 TextEncoding DetectEncoding(const std::string &bytes);
@@ -60,7 +52,7 @@ TextEncoding DetectEncoding(const std::string &bytes);
 std::vector<char16_t> DecodeBytes(const std::string &bytes, TextEncoding encoding, std::error_code &ec);
 
 // UTF-16 の字句を指定の文字コードでエンコードして返す。
-// Windows-31J で表現できない文字がある場合は ec にエ㺊ーを設定する。
+// Windows-31J で表現できない文字がある場合は ec にエラーを設定する。
 std::string EncodeUtf16(const std::u16string &text, TextEncoding encoding, std::error_code &ec);
 
 // UTF-16 の CSV 値を対話的な論理レコードのリストに解析する。
@@ -71,7 +63,7 @@ std::vector<Record> ParseCsvRecords(const std::vector<char16_t> &utf16, std::err
 std::string FormatCsvRecords(const std::vector<Record> &records, const OutputSettings &settings);
 
 // ヘッダーとデータをまとめて解析し、結果を返す。
-// 失敗した場合は ec にエラーを設定し、詳細は details に追加される。
+// 失敗した場合は ec にエラーを設定する。
 ParsedCsv ParseCsv(const std::string &bytes, TextEncoding encoding, std::error_code &ec);
 
 // 論理レコードを誤りなく出力できるか検証する。

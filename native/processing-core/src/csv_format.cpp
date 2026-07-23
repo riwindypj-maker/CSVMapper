@@ -90,6 +90,8 @@ bool IsValidUtf8(const std::string_view bytes) {
                                       (static_cast<std::uint32_t>(bytes[i + 2] & 0x3F));
       if (codepoint >= 0xD800 && codepoint <= 0xDFFF)
         return false;
+      if (codepoint < 0x800)
+        return false;
     } else if (trailing == 1) {
       const std::uint32_t codepoint =
           (static_cast<std::uint32_t>(c & 0x1F) << 6) | (static_cast<std::uint32_t>(bytes[i + 1] & 0x3F));
@@ -117,8 +119,13 @@ bool IsValidWindows31J(const std::string_view bytes) {
     UChar *target = buffer;
     UChar *targetLimit = buffer + std::size(buffer);
     ucnv_toUnicode(converter.get(), &target, targetLimit, &source, sourceLimit, nullptr, false, &status);
-    if (U_FAILURE(status))
-      return status == U_BUFFER_OVERFLOW_ERROR ? true : false;
+    if (U_FAILURE(status)) {
+      if (status == U_BUFFER_OVERFLOW_ERROR) {
+        status = U_ZERO_ERROR;
+        continue;
+      }
+      return false;
+    }
   }
   return true;
 }
