@@ -3,8 +3,10 @@
 
 #include "csvmapper/string_transforms.h"
 
+#include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -63,6 +65,8 @@ std::vector<std::size_t> GraphemeBoundaries(const std::u16string &text) {
 std::pair<std::size_t, std::size_t> GraphemeRange(const std::u16string &text, std::size_t position,
                                                   std::size_t length) {
   const auto boundaries = GraphemeBoundaries(text);
+  if (boundaries.empty())
+    return {text.size(), 0};
   if (position > boundaries.size() - 1)
     return {text.size(), 0};
   const std::size_t start = boundaries[position - 1];
@@ -140,7 +144,7 @@ std::u16string RemoveWhitespaceImpl(const std::u16string &input) {
   std::u16string result;
   result.reserve(input.size());
   for (char16_t c : input) {
-    if (c != u' ' && c != u'\u3000')
+    if (c != u' ' && c != u'\t' && c != u'\u3000')
       result.push_back(c);
   }
   return result;

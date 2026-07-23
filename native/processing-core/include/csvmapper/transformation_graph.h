@@ -5,6 +5,8 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
+#include <optional>
 #include <string>
 #include <system_error>
 #include <unordered_map>
