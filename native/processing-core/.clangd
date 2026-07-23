@@ -1,0 +1,5 @@
+# clangd / clang-tidy が参照するプロジェクト固有の設定を定義する。
+# .clang-format はルートにあるため、ここでは IncludeAnalyzer と補完の挙動のみ調整する。
+# RELEVANT FILES: ../.clang-format, ../.clang-tidy
+CompileFlags:
+  Add: [-std=c++20, -Iinclude]

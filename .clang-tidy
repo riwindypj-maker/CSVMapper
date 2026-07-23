@@ -1,0 +1,30 @@
+# C++ の静的解析設定を定義する。
+# clang-format が整形を担い、clang-tidy が論理的欠陥を検出する。
+# RELEVANT FILES: .clang-format, native/processing-core/CMakeLists.txt
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  readability-*,
+  modernize-use-override,
+  modernize-use-using,
+  modernize-use-nullptr,
+  modernize-use-emplace,
+  modernize-return-braced-init-list,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-pro-type-static-cast-downcast,
+  cppcoreguidelines-slicing,
+  cert-dcl50-cpp,
+  cert-err34-c,
+  cert-err52-cpp,
+  cert-err58-cpp,
+  cert-err60-cpp,
+  cert-msc50-cpp,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-narrowing-conversions,
+  -performance-unnecessary-value-param
+WarningsAsErrors: ''
+HeaderFilterRegex: 'include/csvmapper/.*\.h$'
+FormatStyle: file
