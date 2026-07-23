@@ -12,8 +12,8 @@ test('renders the validation host', async () => {
     renderer = ReactTestRenderer.create(<App />);
   });
 
-  expect(renderer!.root.findByProps({children: 'CSV Mapper'})).toBeTruthy();
+  expect(renderer!.root.findByProps({ children: 'CSV Mapper' })).toBeTruthy();
   expect(
-    renderer!.root.findByProps({children: 'macOS 検証ホスト'}),
+    renderer!.root.findByProps({ children: 'macOS 検証ホスト' }),
   ).toBeTruthy();
 });

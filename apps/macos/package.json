@@ -6,15 +6,20 @@
     "android": "react-native run-android",
     "build:macos:debug": "react-native build-macos --mode Debug",
     "build:macos:release": "react-native build-macos --mode Release",
-    "format:check": "prettier --check App.tsx index.js jest.config.js metro.config.js babel.config.js scripts/**/*.cjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:cpp": "bash scripts/format-cpp.sh",
+    "format:cpp:check": "bash scripts/format-cpp.sh --check",
     "ios": "react-native run-ios",
     "lint": "eslint .",
+    "lint:cpp": "bash scripts/lint-cpp.sh",
     "macos": "react-native run-macos",
     "postinstall": "node scripts/patch-react-native-macos.cjs",
     "start": "react-native start",
     "test": "jest",
     "test:core": "bash scripts/test-processing-core.sh",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "quality": "npm run format:check && npm run lint && npm run typecheck && npm run test -- --passWithNoTests && npm run format:cpp:check && npm run lint:cpp && npm run test:core"
   },
   "dependencies": {
     "react": "19.1.4",

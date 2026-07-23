@@ -1,0 +1,8 @@
+# Prettier の検査対象から除外するパスを定義する。
+# 自動生成物・サードパーティの依存コードを整形対象から外すために存在する。
+# RELEVANT FILES: package.json, .prettierrc.js
+
+macos/build/
+macos/Pods/
+vendor/
+node_modules/

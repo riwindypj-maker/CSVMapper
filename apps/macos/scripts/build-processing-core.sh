@@ -21,6 +21,32 @@ clean_environment=(
   "DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 )
 
+# env -i でも ICU を解決できるよう、ICU_ROOT / PKG_CONFIG_PATH を引き継ぐ。
+if [[ -z "${ICU_ROOT:-}" ]]; then
+  for candidate in \
+    "$(command -v brew >/dev/null 2>&1 && brew --prefix icu4c@78 2>/dev/null || true)" \
+    "$(command -v brew >/dev/null 2>&1 && brew --prefix icu4c 2>/dev/null || true)" \
+    "/opt/homebrew/opt/icu4c@78" \
+    "/opt/homebrew/opt/icu4c" \
+    "/usr/local/opt/icu4c@78" \
+    "/usr/local/opt/icu4c"; do
+    if [[ -n "${candidate}" && -d "${candidate}/lib/pkgconfig" ]]; then
+      ICU_ROOT="${candidate}"
+      break
+    fi
+  done
+fi
+if [[ -n "${ICU_ROOT:-}" ]]; then
+  clean_environment+=("ICU_ROOT=${ICU_ROOT}")
+  if [[ -n "${PKG_CONFIG_PATH:-}" ]]; then
+    clean_environment+=("PKG_CONFIG_PATH=${ICU_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}")
+  else
+    clean_environment+=("PKG_CONFIG_PATH=${ICU_ROOT}/lib/pkgconfig")
+  fi
+elif [[ -n "${PKG_CONFIG_PATH:-}" ]]; then
+  clean_environment+=("PKG_CONFIG_PATH=${PKG_CONFIG_PATH}")
+fi
+
 env -i "${clean_environment[@]}" cmake \
   --fresh \
   -S "${core_source}" \
