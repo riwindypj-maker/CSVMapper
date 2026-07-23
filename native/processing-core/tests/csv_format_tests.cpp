@@ -131,6 +131,32 @@ void TestParseHeaderOnly() {
   assert(parsed.records.empty());
 }
 
+void TestParseTrailingBlankLinesIgnored() {
+  // 末尾の空行はレコードにせず、項目数不一致にもしない。
+  std::string bytes = "A,B\n1,2\n\n\n";
+  std::error_code ec;
+  auto parsed = ParseCsv(bytes, TextEncoding::AutoDetect, ec);
+  assert(!ec);
+  assert(parsed.headers.size() == 2);
+  assert(parsed.records.size() == 1);
+  assert(ToUtf8(parsed.records[0].fields[0]) == "1");
+  assert(ToUtf8(parsed.records[0].fields[1]) == "2");
+}
+
+void TestParseQuotedEmptyNotBlankLine() {
+  // 引用付き空フィールドは空行スキップの対象外。
+  std::string bytes = "A\n\"\"\n";
+  std::error_code ec;
+  auto decoded = DecodeBytes(bytes, TextEncoding::Utf8, ec);
+  assert(!ec);
+  auto records = ParseCsvRecords(decoded, ec);
+  assert(!ec);
+  assert(records.size() == 2);
+  assert(records[0].fields.size() == 1);
+  assert(records[1].fields.size() == 1);
+  assert(records[1].fields[0].empty());
+}
+
 void TestFormatUtf8Bom() {
   Record r;
   r.fields = {u"a", u"b"};

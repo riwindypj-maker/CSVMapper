@@ -177,6 +177,20 @@ void TestInspectCsvE001InconsistentFields() {
   assert(result.issues[0].location.endPhysicalLine >= result.issues[0].location.startPhysicalLine);
 }
 
+void TestInspectTrailingBlankLinesIgnored() {
+  // 末尾空行があっても inspect は成功し、データ行数に空行を数えない。
+  MemoryByteSource source("A,B\n1,2\n\n\n");
+  InspectInputOptions options;
+  options.encoding = TextEncoding::Utf8;
+  options.minProgressInterval = std::chrono::milliseconds(0);
+
+  const auto result = InspectInput("op-trailing-blank", source, options);
+  assert(result.success);
+  assert(result.columnCount == 2);
+  assert(result.dataRowCount == 1);
+  assert(ToUtf8(result.items[0].sample) == "1");
+}
+
 void TestInspectCancelDoesNotCommit() {
   // 走査中の中止では部分結果を確定しない。
   std::string bytes = "A,B\n";

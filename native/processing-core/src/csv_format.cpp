@@ -304,6 +304,16 @@ void StreamingCsvParser::FlushField() {
 }
 
 bool StreamingCsvParser::FinalizeRecord(std::size_t endPhysicalLine) {
+  // 引用・区切り・文字が一切ない行は空行。レコード化せず末尾・余分な改行を許容する。
+  // 意図した空フィールドは "" や , 付き行で表現する。
+  if (current_.fields.empty() && field_.empty() && quoteAllowed_ && !expectFieldSeparator_) {
+    startPhysicalLine_ = physicalLine_;
+    recordEnded_ = true;
+    quoteAllowed_ = true;
+    expectFieldSeparator_ = false;
+    return true;
+  }
+
   FlushField();
   if (hasExpectedFieldCount_) {
     if (current_.fields.size() != expectedFieldCount_) {
@@ -551,7 +561,7 @@ std::vector<Record> ParseCsvRecords(const std::vector<char16_t> &utf16, std::err
     return {};
   }
 
-  // 最後の空レコード（例：空行）を除去
+  // 空行は FinalizeRecord 側でスキップ済み。防御的に空 fields の末尾も除去する。
   while (!records.empty() && records.back().fields.empty())
     records.pop_back();
 

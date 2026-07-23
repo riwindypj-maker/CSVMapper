@@ -25,6 +25,8 @@ fi
 # CMakeLists.txt 追加ソースが古い DB に残ると新規 TU が検査対象外になるため。
 compile_dir="$root/native/processing-core/build-lint"
 compile_db="$compile_dir/compile_commands.json"
+# configure 失敗時に古い compile_commands.json へフォールバックすると、
+# 新規 TU が検査対象外のまま成功扱いになり得るため、失敗をそのまま伝播する。
 echo "Ensuring compile_commands.json in ${compile_dir}..."
 if ! cmake \
   -S "$root/native/processing-core" \
@@ -32,15 +34,8 @@ if ! cmake \
   -DCMAKE_BUILD_TYPE=Debug \
   -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
-  fallback="$root/apps/macos/macos/build/processing-core-tests/compile_commands.json"
-  if [[ -f "$fallback" ]]; then
-    echo "warning: build-lint configure failed; falling back to ${fallback}" >&2
-    compile_dir="$(dirname "$fallback")"
-    compile_db="$fallback"
-  else
-    echo "error: compile_commands.json not found after CMake configure" >&2
-    exit 1
-  fi
+  echo "error: failed to configure the lint compilation database" >&2
+  exit 1
 fi
 
 if [[ ! -f "$compile_db" ]]; then
