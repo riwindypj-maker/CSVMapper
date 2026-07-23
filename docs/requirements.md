@@ -42,7 +42,7 @@ CSV の入力項目と必要な出力項目を理解している一般業務ユ�
 - 接続検証、Undo・Redo、手動プレビュー
 - 安全なファイル置換、進捗表示、中止、処理結果表示
 - Windows 11 64 ビット
-- macOS 13 以降の Apple Silicon 搭載 Mac
+- macOS 14 以降の Apple Silicon 搭載 Mac
 
 ## 対象外
 

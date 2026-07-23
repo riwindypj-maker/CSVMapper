@@ -1,0 +1,7 @@
+# C++ と Objective-C++ の自動整形規則を定義する。
+# 日本語ヘッダーコメントを保持しながらネイティブコードの形式を統一するために存在する。
+# RELEVANT FILES: native/processing-core/CMakeLists.txt, native/processing-core/src/processing_core.cpp, apps/macos/macos/CSVMapper-macOS/AppDelegate.mm
+
+BasedOnStyle: LLVM
+ColumnLimit: 120
+ReflowComments: false

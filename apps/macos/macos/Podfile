@@ -1,0 +1,53 @@
+# React Native macOS のネイティブ依存とビルド設定を定義する。
+# CocoaPods を React Native macOS のビルド接着層だけに限定するために存在する。
+# RELEVANT FILES: ../Gemfile, ../package.json, CSVMapper.xcodeproj/project.pbxproj
+require 'pathname'
+
+ws_dir = Pathname.new(__dir__)
+ws_dir = ws_dir.parent until
+  File.exist?("#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb") ||
+  ws_dir.expand_path.to_s == '/'
+require "#{ws_dir}/node_modules/react-native-macos/scripts/react_native_pods.rb"
+
+prepare_react_native_project!
+
+target 'CSVMapper-macOS' do
+  platform :macos, '14.0'
+  # 固定済みの第三者コードではなく、アプリ本体の警告を品質ゲートの対象にする。
+  inhibit_all_warnings!
+  use_native_modules!
+
+  use_react_native!(
+    :path => '../node_modules/react-native-macos',
+    :fabric_enabled => ENV['RCT_NEW_ARCH_ENABLED'] == '1',
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/.."
+  )
+
+  post_install do |installer|
+    react_native_post_install(installer)
+
+    # ObjC++ ターゲットでは Xcode が libc++ を自動リンクするため、CocoaPods 側の重複指定だけを除く。
+    installer.aggregate_targets.each do |aggregate_target|
+      aggregate_target.xcconfigs.each do |configuration_name, config|
+        next unless config.libraries.delete?('c++')
+
+        config.save_as(aggregate_target.xcconfig_path(configuration_name))
+      end
+    end
+
+    installer.pods_project.targets.each do |pod_target|
+      # プラットフォームによって空になる自動生成ソースの libtool 警告だけを抑止する。
+      pod_target.build_configurations.each do |configuration|
+        configuration.build_settings['OTHER_LIBTOOLFLAGS'] = '$(inherited) -no_warning_for_no_symbols'
+      end
+
+      next unless pod_target.name == 'hermes-engine'
+
+      # 構成ごとに Hermes を選ぶスクリプトは常時実行が意図された動作である。
+      pod_target.shell_script_build_phases.each do |phase|
+        phase.always_out_of_date = '1' if phase.name.include?('Replace Hermes')
+      end
+    end
+  end
+end
