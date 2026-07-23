@@ -4,10 +4,6 @@
 
 #include "csvmapper/processing_core.h"
 
-#include <cassert>
 #include <string_view>
 
-int main() {
-  assert(std::string_view(csvmapper::processing_core_version()) == "0.1.0-prototype");
-  return 0;
-}
+int main() { return std::string_view(csvmapper::processing_core_version()) == "0.1.0-prototype" ? 0 : 1; }

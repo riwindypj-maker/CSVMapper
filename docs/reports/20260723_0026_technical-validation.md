@@ -91,7 +91,7 @@ MSIX は本番配布時に信頼された証明書による署名が必要であ
 | CMake                 | `4.4.0`                                  |
 | Windows/Visual Studio | 現在の端末では利用不可                   |
 
-`apps/macos` に macOS 検証用ホストを生成し、Bundler 管理下の CocoaPods で 72 Pods を解決した。Debug/Release の両ビルドと ad-hoc 署名検証に成功し、Release には `main.jsbundle` が同梱された。Release 実行ファイルは arm64/x86_64 の Universal Binary、最低対応 OS は要件どおり macOS `14.0` であり、Metro を起動していない状態でアプリを起動できた。
+`apps/macos` に macOS 検証用ホストを生成し、Bundler 管理下の CocoaPods で 72 Pods を解決した。Debug/Release の両ビルドと ad-hoc 署名検証に成功し、Release には `main.jsbundle` が同梱された。技術検証用の Release 実行ファイルは arm64/x86_64 の Universal Binary、最低対応 OS は要件どおり macOS `14.0` であり、Metro を起動していない状態でアプリを起動できた。本番配布物は `docs/specs/design/application-architecture.md` の arm64 配布契約に従う。
 
 Processing Core は CMake の静的ライブラリとして Xcode Build Phase から Debug/Release と arm64/x86_64 の各構成向けに生成され、アプリへのリンクと初期化コードからの参照を確認した。既存の `node_modules`、Bundler キャッシュ、Pods、DerivedData を除いた一時環境でも `npm ci --no-audit`、`bundle install`、`pod install --deployment`、arm64 Debug ビルド、Jest、ESLint、TypeScript、CTest が成功した。SocketRocket は React Native macOS 同梱のローカル Podspec と固定コミットから取得され、CocoaPods Trunk の Specs リポジトリには依存しない。
 
