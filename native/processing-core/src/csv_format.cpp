@@ -1,6 +1,6 @@
 // CSV 解析と出力表現の実装。
 // 入力バイト列の文字コード変換と RFC 4180 相当の解析を共通化する。
-// RELEVANT FILES: ../include/csvmapper/csv_format.h, ../tests/csv_format_tests.cpp
+// RELEVANT FILES: ../include/csvmapper/csv_format.h, ../tests/csv_format_tests.cpp, ../include/csvmapper/csv_inspect.h
 
 #include "csvmapper/csv_format.h"
 
@@ -269,124 +269,305 @@ std::string EncodeUtf16(const std::u16string &text, TextEncoding encoding, std::
   }
 }
 
-std::vector<Record> ParseCsvRecords(const std::vector<char16_t> &utf16, std::error_code &ec) {
-  ec.clear();
-  std::vector<Record> records;
-  if (utf16.empty()) {
-    ec = CsvErrorCode::EmptyFile;
-    return records;
+void StreamingCsvParser::Reset() {
+  handler_ = nullptr;
+  current_ = Record{};
+  field_.clear();
+  inQuotes_ = false;
+  quoteAllowed_ = true;
+  expectFieldSeparator_ = false;
+  recordEnded_ = false;
+  finished_ = false;
+  stopped_ = false;
+  pendingCr_ = false;
+  pendingQuote_ = false;
+  physicalLine_ = 1;
+  startPhysicalLine_ = 1;
+  nextRecordNumber_ = 1;
+  expectedFieldCount_ = 0;
+  hasExpectedFieldCount_ = false;
+  issue_ = CsvParseIssue{};
+}
+
+void StreamingCsvParser::SetRecordHandler(RecordHandler handler) { handler_ = std::move(handler); }
+
+void StreamingCsvParser::SetError(CsvErrorCode code) {
+  issue_.code = code;
+  issue_.location.recordNumber = nextRecordNumber_;
+  issue_.location.startPhysicalLine = startPhysicalLine_;
+  issue_.location.endPhysicalLine = physicalLine_;
+}
+
+void StreamingCsvParser::FlushField() {
+  current_.fields.push_back(std::move(field_));
+  field_.clear();
+}
+
+bool StreamingCsvParser::FinalizeRecord(std::size_t endPhysicalLine) {
+  // 引用・区切り・文字が一切ない行は空行。レコード化せず末尾・余分な改行を許容する。
+  // 意図した空フィールドは "" や , 付き行で表現する。
+  if (current_.fields.empty() && field_.empty() && quoteAllowed_ && !expectFieldSeparator_) {
+    startPhysicalLine_ = physicalLine_;
+    recordEnded_ = true;
+    quoteAllowed_ = true;
+    expectFieldSeparator_ = false;
+    return true;
   }
 
-  Record current;
-  std::u16string field;
-  bool inQuotes = false;
-  bool quoteAllowed = true;
-  // 閉じ引用の直後は区切り（, / 改行 / EOF）以外を不正とする。
-  bool expectFieldSeparator = false;
-  bool recordEnded = false;
-  std::size_t physicalLine = 1;
-  std::size_t startPhysicalLine = 1;
+  FlushField();
+  if (hasExpectedFieldCount_) {
+    if (current_.fields.size() != expectedFieldCount_) {
+      SetError(CsvErrorCode::InconsistentFieldCount);
+      issue_.location.endPhysicalLine = endPhysicalLine;
+      return false;
+    }
+  } else {
+    expectedFieldCount_ = current_.fields.size();
+    hasExpectedFieldCount_ = true;
+  }
 
-  auto flushField = [&]() {
-    current.fields.push_back(std::move(field));
-    field.clear();
+  CsvRecordLocation location;
+  location.recordNumber = nextRecordNumber_;
+  location.startPhysicalLine = startPhysicalLine_;
+  location.endPhysicalLine = endPhysicalLine;
+  ++nextRecordNumber_;
+
+  Record emitted = std::move(current_);
+  current_ = Record{};
+  startPhysicalLine_ = physicalLine_;
+  recordEnded_ = true;
+  quoteAllowed_ = true;
+  expectFieldSeparator_ = false;
+
+  if (handler_) {
+    if (!handler_(std::move(emitted), location)) {
+      stopped_ = true;
+      return false;
+    }
+  }
+  return true;
+}
+
+bool StreamingCsvParser::Feed(const char16_t *data, std::size_t size) {
+  if (HasError() || stopped_ || finished_)
+    return !HasError() && !stopped_;
+  if (data == nullptr && size != 0)
+    return false;
+
+  std::size_t i = 0;
+
+  auto consumeRecordEnding = [&](bool sawLfAfterCr) -> bool {
+    if (sawLfAfterCr) {
+      // CR 消費済み。LF は呼び出し側で進める。
+    }
+    ++physicalLine_;
+    return FinalizeRecord(physicalLine_ - 1);
   };
 
-  auto finalizeRecord = [&]() {
-    flushField();
-    records.push_back(std::move(current));
-    current = Record{};
-    startPhysicalLine = physicalLine;
-    recordEnded = true;
-    quoteAllowed = true;
-    expectFieldSeparator = false;
-  };
+  // チャンク境界で保留した CR を先に確定する。
+  if (pendingCr_) {
+    pendingCr_ = false;
+    const bool sawLf = (i < size && data[i] == u'\n');
+    if (sawLf)
+      ++i;
+    if (inQuotes_) {
+      ++physicalLine_;
+      field_.push_back(u'\n');
+    } else {
+      if (!consumeRecordEnding(sawLf))
+        return false;
+    }
+  }
 
-  for (std::size_t i = 0; i < utf16.size(); ++i) {
-    const char16_t c = utf16[i];
-    const char16_t next = (i + 1 < utf16.size()) ? utf16[i + 1] : 0;
-    recordEnded = false;
+  // 引用内の " がチャンク末尾だった場合、次チャンク先頭でエスケープか閉じかを決める。
+  if (pendingQuote_) {
+    pendingQuote_ = false;
+    if (i < size && data[i] == u'"') {
+      field_.push_back(u'"');
+      ++i;
+    } else {
+      inQuotes_ = false;
+      quoteAllowed_ = false;
+      expectFieldSeparator_ = true;
+    }
+  }
 
-    if (inQuotes) {
+  while (i < size) {
+    if (HasError() || stopped_)
+      return false;
+
+    const char16_t c = data[i];
+    const bool hasNext = (i + 1 < size);
+    const char16_t next = hasNext ? data[i + 1] : 0;
+    recordEnded_ = false;
+
+    if (inQuotes_) {
       if (c == u'"') {
+        if (!hasNext) {
+          // 次チャンクを待たないと "" か閉じ引用か判定できない。
+          pendingQuote_ = true;
+          ++i;
+          break;
+        }
         if (next == u'"') {
-          field.push_back(u'"');
-          ++i;
+          field_.push_back(u'"');
+          i += 2;
         } else {
-          inQuotes = false;
-          quoteAllowed = false;
-          expectFieldSeparator = true;
-        }
-      } else if (c == u'\r') {
-        if (next == u'\n') {
+          inQuotes_ = false;
+          quoteAllowed_ = false;
+          expectFieldSeparator_ = true;
           ++i;
-          ++physicalLine;
-        } else {
-          ++physicalLine;
         }
-        field.push_back(u'\n');
-      } else if (c == u'\n') {
-        ++physicalLine;
-        field.push_back(u'\n');
-      } else {
-        field.push_back(c);
+        continue;
       }
+      if (c == u'\r') {
+        if (!hasNext) {
+          pendingCr_ = true;
+          ++i;
+          break;
+        }
+        if (next == u'\n')
+          ++i;
+        ++physicalLine_;
+        field_.push_back(u'\n');
+        ++i;
+        continue;
+      }
+      if (c == u'\n') {
+        ++physicalLine_;
+        field_.push_back(u'\n');
+        ++i;
+        continue;
+      }
+      field_.push_back(c);
+      ++i;
       continue;
     }
 
-    if (c == u'"' && quoteAllowed) {
-      inQuotes = true;
-      quoteAllowed = false;
+    if (c == u'"' && quoteAllowed_) {
+      inQuotes_ = true;
+      quoteAllowed_ = false;
+      ++i;
       continue;
     }
 
     if (c == u',') {
-      flushField();
-      quoteAllowed = true;
-      expectFieldSeparator = false;
-    } else if (c == u'\r') {
+      FlushField();
+      quoteAllowed_ = true;
+      expectFieldSeparator_ = false;
+      ++i;
+      continue;
+    }
+
+    if (c == u'\r') {
+      if (!hasNext) {
+        pendingCr_ = true;
+        ++i;
+        break;
+      }
       if (next == u'\n')
         ++i;
-      ++physicalLine;
-      finalizeRecord();
-    } else if (c == u'\n') {
-      ++physicalLine;
-      finalizeRecord();
+      ++i;
+      if (!consumeRecordEnding(true))
+        return false;
+      continue;
+    }
+
+    if (c == u'\n') {
+      ++i;
+      if (!consumeRecordEnding(false))
+        return false;
+      continue;
+    }
+
+    if (expectFieldSeparator_) {
+      SetError(CsvErrorCode::MalformedCsv);
+      return false;
+    }
+    field_.push_back(c);
+    quoteAllowed_ = false;
+    ++i;
+  }
+
+  return !HasError();
+}
+
+bool StreamingCsvParser::Finish() {
+  if (HasError())
+    return false;
+  if (stopped_)
+    return false;
+  if (finished_)
+    return true;
+  finished_ = true;
+
+  if (pendingQuote_) {
+    pendingQuote_ = false;
+    inQuotes_ = false;
+    quoteAllowed_ = false;
+    expectFieldSeparator_ = true;
+  }
+
+  if (pendingCr_) {
+    pendingCr_ = false;
+    if (inQuotes_) {
+      ++physicalLine_;
+      field_.push_back(u'\n');
     } else {
-      if (expectFieldSeparator) {
-        ec = CsvErrorCode::MalformedCsv;
-        return {};
-      }
-      field.push_back(c);
-      quoteAllowed = false;
+      ++physicalLine_;
+      if (!FinalizeRecord(physicalLine_ - 1))
+        return false;
     }
   }
 
-  if (inQuotes) {
-    ec = CsvErrorCode::MalformedCsv;
+  if (inQuotes_) {
+    SetError(CsvErrorCode::MalformedCsv);
+    return false;
+  }
+
+  // 改行で終わっていない最終レコードを確定する（一括解析と同じ）。
+  if (!recordEnded_) {
+    if (!FinalizeRecord(physicalLine_))
+      return false;
+  }
+
+  if (nextRecordNumber_ == 1) {
+    SetError(CsvErrorCode::EmptyFile);
+    issue_.location.recordNumber = 0;
+    issue_.location.startPhysicalLine = 0;
+    issue_.location.endPhysicalLine = 0;
+    return false;
+  }
+
+  return !HasError() && !stopped_;
+}
+
+std::vector<Record> ParseCsvRecords(const std::vector<char16_t> &utf16, std::error_code &ec) {
+  ec.clear();
+  if (utf16.empty()) {
+    ec = CsvErrorCode::EmptyFile;
     return {};
   }
 
-  if (!recordEnded) {
-    finalizeRecord();
+  std::vector<Record> records;
+  StreamingCsvParser parser;
+  parser.SetRecordHandler([&](Record record, CsvRecordLocation) {
+    records.push_back(std::move(record));
+    return true;
+  });
+
+  if (!parser.Feed(utf16) || !parser.Finish()) {
+    ec = parser.GetIssue().code;
+    return {};
   }
 
-  // 最後の空レコード（例：空行）を除去
+  // 空行は FinalizeRecord 側でスキップ済み。防御的に空 fields の末尾も除去する。
   while (!records.empty() && records.back().fields.empty())
     records.pop_back();
 
   if (records.empty()) {
     ec = CsvErrorCode::EmptyFile;
     return records;
-  }
-
-  // 項目数一致チェック
-  const std::size_t expected = records.front().fields.size();
-  for (std::size_t r = 1; r < records.size(); ++r) {
-    if (records[r].fields.size() != expected) {
-      ec = CsvErrorCode::InconsistentFieldCount;
-      return {};
-    }
   }
 
   return records;

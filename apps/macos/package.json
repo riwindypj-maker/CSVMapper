@@ -15,6 +15,7 @@
     "lint:cpp": "bash scripts/lint-cpp.sh",
     "macos": "react-native run-macos",
     "postinstall": "node scripts/patch-react-native-macos.cjs",
+    "prepare": "bash ../../scripts/install-git-hooks.sh",
     "start": "react-native start",
     "test": "jest",
     "test:core": "bash scripts/test-processing-core.sh",

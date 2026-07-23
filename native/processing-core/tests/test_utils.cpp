@@ -1,8 +1,8 @@
 // ドメインテスト間で共通する UTF-8/UTF-16 変換ヘルパーを実装する。
 // RELEVANT FILES: test_utils.h
 
-#include "csvmapper/csv_format.h"
 #include "test_utils.h"
+#include "csvmapper/csv_format.h"
 
 #include <system_error>
 
