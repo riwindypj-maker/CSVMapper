@@ -72,7 +72,7 @@ CSV 解析、文字列境界、グラフ循環判定、安全な上書きは失�
 - react-native-svg `15.15.5`、@dagrejs/dagre `3.0.0`、ICU4C `78.3` の両 OS 実ビルド・性能・配布サイズ
 - Windows の Store 利用有無、本番署名方式、macOS の DMG 生成手段
 
-これらは順序 1 の技術検証で確定する。`docs/specs/design/application-architecture.md`、`docs/specs/design/mapping-canvas.md`、`docs/specs/modules/processing-core.md` の未決定事項が解消するまで、順序 2 の製品実装へ進まない。
+これらは順序 1 の技術検証で確定する。`docs/specs/design/application-architecture.md`、`docs/specs/design/mapping-canvas.md`、`docs/specs/modules/processing-core.md` の未決定事項が解消するまで、順序 3 の製品実装へ進まない。
 
 ## 質問事項
 

@@ -141,7 +141,7 @@ void TestFormatUtf8Bom() {
   assert(formatted.rfind("\xEF\xBB\xBF", 0) == 0);
 }
 
-void TestFormatWindows31JUnmappable() {
+void TestFormatWindows31JMappable() {
   Record r;
   r.fields = {u"\u65E5\u672C"}; // 日本
   OutputSettings settings;

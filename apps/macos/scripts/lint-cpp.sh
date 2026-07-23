@@ -22,10 +22,16 @@ if [[ -z "$clang_tidy" ]]; then
 fi
 
 # compile_commands.json があれば利用する（CMAKE_EXPORT_COMPILE_COMMANDS=ON で生成）。
-compile_db="$root/native/processing-core/build/compile_commands.json"
+# Xcode ビルドでは compile_commands.json が出ないため、clang-tidy 用の Ninja ビルドを優先する。
+compile_dir="$root/native/processing-core/build-lint"
+compile_db="$compile_dir/compile_commands.json"
+if [[ ! -f "$compile_db" ]]; then
+  compile_dir="$root/native/processing-core/build"
+  compile_db="$compile_dir/compile_commands.json"
+fi
 extra_args=()
 if [[ -f "$compile_db" ]]; then
-  extra_args+=(-p "$compile_db")
+  extra_args+=(-p "$compile_dir")
 fi
 
 find "$root/native" \( -name '*.cpp' -o -name '*.h' \) \

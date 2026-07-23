@@ -39,6 +39,9 @@ endif()
 
 pkg_check_modules(ICU REQUIRED icu-uc icu-i18n IMPORTED_TARGET)
 
+# clang-tidy / clangd 用にコンパイルコマンドをエクスポートする。
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_library(csvmapper_processing_core STATIC
   src/processing_core.cpp
   src/csv_format.cpp
@@ -52,9 +55,6 @@ target_include_directories(csvmapper_processing_core
 )
 
 target_compile_features(csvmapper_processing_core PUBLIC cxx_std_20)
-
-# clang-tidy / clangd 用にコンパイルコマンドをエクスポートする。
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 target_link_libraries(csvmapper_processing_core
   PUBLIC

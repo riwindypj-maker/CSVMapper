@@ -31,7 +31,7 @@ void TestDecodeInvalidUtf8();
 void TestParseEmptyHeader();
 void TestParseHeaderOnly();
 void TestFormatUtf8Bom();
-void TestFormatWindows31JUnmappable();
+void TestFormatWindows31JMappable();
 void TestFormatEmojiUnmappable();
 
 // string_transforms_tests.cpp
@@ -86,7 +86,7 @@ int main() {
   TestParseEmptyHeader();
   TestParseHeaderOnly();
   TestFormatUtf8Bom();
-  TestFormatWindows31JUnmappable();
+  TestFormatWindows31JMappable();
   TestFormatEmojiUnmappable();
 
   TestFrontTrim();
