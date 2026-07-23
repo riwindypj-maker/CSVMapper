@@ -45,6 +45,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(csvmapper_processing_core STATIC
   src/processing_core.cpp
   src/csv_format.cpp
+  src/csv_inspect.cpp
   src/string_transforms.cpp
   src/transformation_graph.cpp
 )
@@ -73,6 +74,7 @@ if(PROJECT_IS_TOP_LEVEL)
     tests/all_tests.cpp
     tests/test_utils.cpp
     tests/csv_format_tests.cpp
+    tests/csv_inspect_tests.cpp
     tests/string_transforms_tests.cpp
     tests/transformation_graph_tests.cpp
   )

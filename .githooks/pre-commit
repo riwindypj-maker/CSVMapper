@@ -1,0 +1,72 @@
+#!/bin/bash
+# コミット前にフォーマッターとリンターの品質チェックを実行する。
+# 整形・静的解析の失敗をリポジトリへ入れないために存在する。
+# RELEVANT FILES: ../apps/macos/package.json, ../apps/macos/scripts/format-cpp.sh, ../apps/macos/scripts/lint-cpp.sh
+
+set -euo pipefail
+
+root="$(git rev-parse --show-toplevel)"
+macos_app="$root/apps/macos"
+
+if [[ "${SKIP_QUALITY:-}" == "1" ]]; then
+  echo "pre-commit: SKIP_QUALITY=1 のため品質チェックを省略します。"
+  exit 0
+fi
+
+if [[ ! -d "$macos_app/node_modules" ]]; then
+  echo "pre-commit: apps/macos/node_modules がありません。先に cd apps/macos && npm ci を実行してください。" >&2
+  exit 1
+fi
+
+# ステージ済みパスを集め、関係するチェックだけ走らせて待ち時間を抑える。
+staged="$(git diff --cached --name-only --diff-filter=ACMR || true)"
+if [[ -z "$staged" ]]; then
+  exit 0
+fi
+
+need_js=0
+need_cpp=0
+while IFS= read -r path; do
+  [[ -z "$path" ]] && continue
+  case "$path" in
+    *.ts|*.tsx|*.js|*.jsx|*.mjs|*.cjs|*.json|*.md|*.yml|*.yaml)
+      need_js=1
+      ;;
+  esac
+  case "$path" in
+    native/*|apps/macos/scripts/format-cpp.sh|apps/macos/scripts/lint-cpp.sh|.clang-format|.clang-tidy)
+      need_cpp=1
+      ;;
+    *.cpp|*.h|*.hpp|*.mm)
+      need_cpp=1
+      ;;
+  esac
+  # Prettier / ESLint の対象になりうるホスト配下も JS 品質へ含める。
+  case "$path" in
+    apps/macos/*)
+      need_js=1
+      ;;
+  esac
+done <<< "$staged"
+
+# どちらにも当てはまらない変更だけなら、共通の整形対象外として通過する。
+if [[ "$need_js" -eq 0 && "$need_cpp" -eq 0 ]]; then
+  exit 0
+fi
+
+cd "$macos_app"
+
+if [[ "$need_js" -eq 1 ]]; then
+  echo "pre-commit: Prettier / ESLint / TypeScript を実行します..."
+  npm run format:check
+  npm run lint
+  npm run typecheck
+fi
+
+if [[ "$need_cpp" -eq 1 ]]; then
+  echo "pre-commit: clang-format / clang-tidy を実行します..."
+  npm run format:cpp:check
+  npm run lint:cpp
+fi
+
+echo "pre-commit: 品質チェックに成功しました。"

@@ -1,7 +1,9 @@
 // Processing Core のドメインテストをひとつの実行可能ファイルにまとめる。
-// RELEVANT FILES: csv_format_tests.cpp, string_transforms_tests.cpp, transformation_graph_tests.cpp
+// フレームワーク無しで全ドメイン契約を一括実行するために存在する。
+// RELEVANT FILES: csv_format_tests.cpp, csv_inspect_tests.cpp, string_transforms_tests.cpp, transformation_graph_tests.cpp
 
 #include "csvmapper/csv_format.h"
+#include "csvmapper/csv_inspect.h"
 #include "csvmapper/processing_core.h"
 #include "csvmapper/string_transforms.h"
 #include "csvmapper/transformation_graph.h"
@@ -33,6 +35,24 @@ void TestParseHeaderOnly();
 void TestFormatUtf8Bom();
 void TestFormatWindows31JMappable();
 void TestFormatEmojiUnmappable();
+
+// csv_inspect_tests.cpp
+void TestInspectCsv001QuotedAndEmpty();
+void TestInspectChunkBoundaryQuotedAndCrLf();
+void TestInspectChunkBoundaryUtf8Multibyte();
+void TestInspectCsv002DuplicateHeaders();
+void TestInspectCsv003Encodings();
+void TestInspectCsv004HeaderOnlyWarning();
+void TestInspectCsvE001MalformedWithRecordNumber();
+void TestInspectCsvE001InconsistentFields();
+void TestInspectCancelDoesNotCommit();
+void TestInspectProgressCallbacks();
+void TestInspectMemoryConstraintKeepsOnlySample();
+void TestStreamingParserPhysicalLinesOnError();
+void TestBuildDisplayNamesUniqueUnchanged();
+void TestInspectAutoDetectSmallBufferMultibyte();
+void TestInspectAutoDetectLargeWindows31JWithAsciiHeader();
+void TestInspectUtf8WithBomMismatchKeepsPrefixBytes();
 
 // string_transforms_tests.cpp
 void TestFrontTrim();
@@ -88,6 +108,23 @@ int main() {
   TestFormatUtf8Bom();
   TestFormatWindows31JMappable();
   TestFormatEmojiUnmappable();
+
+  TestInspectCsv001QuotedAndEmpty();
+  TestInspectChunkBoundaryQuotedAndCrLf();
+  TestInspectChunkBoundaryUtf8Multibyte();
+  TestInspectCsv002DuplicateHeaders();
+  TestInspectCsv003Encodings();
+  TestInspectCsv004HeaderOnlyWarning();
+  TestInspectCsvE001MalformedWithRecordNumber();
+  TestInspectCsvE001InconsistentFields();
+  TestInspectCancelDoesNotCommit();
+  TestInspectProgressCallbacks();
+  TestInspectMemoryConstraintKeepsOnlySample();
+  TestStreamingParserPhysicalLinesOnError();
+  TestBuildDisplayNamesUniqueUnchanged();
+  TestInspectAutoDetectSmallBufferMultibyte();
+  TestInspectAutoDetectLargeWindows31JWithAsciiHeader();
+  TestInspectUtf8WithBomMismatchKeepsPrefixBytes();
 
   TestFrontTrim();
   TestBackTrim();

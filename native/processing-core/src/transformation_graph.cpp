@@ -197,8 +197,7 @@ public:
           ordered.push_back(std::make_pair(it->second.joinOrder, std::get<std::u16string>(valueIt->second)));
       }
     }
-    std::stable_sort(ordered.begin(), ordered.end(),
-                     [](const auto &a, const auto &b) { return a.first < b.first; });
+    std::stable_sort(ordered.begin(), ordered.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
     std::vector<std::u16string> result;
     result.reserve(ordered.size());
     for (const auto &p : ordered)

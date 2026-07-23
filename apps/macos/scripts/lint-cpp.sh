@@ -21,19 +21,56 @@ if [[ -z "$clang_tidy" ]]; then
   exit 0
 fi
 
-# compile_commands.json があれば利用する（CMAKE_EXPORT_COMPILE_COMMANDS=ON で生成）。
-# Xcode ビルドでは compile_commands.json が出ないため、clang-tidy 用の Ninja ビルドを優先する。
+# compile_commands.json は lint 専用ビルドを毎回 configure して鮮度を保つ。
+# CMakeLists.txt 追加ソースが古い DB に残ると新規 TU が検査対象外になるため。
 compile_dir="$root/native/processing-core/build-lint"
 compile_db="$compile_dir/compile_commands.json"
-if [[ ! -f "$compile_db" ]]; then
-  compile_dir="$root/native/processing-core/build"
-  compile_db="$compile_dir/compile_commands.json"
-fi
-extra_args=()
-if [[ -f "$compile_db" ]]; then
-  extra_args+=(-p "$compile_dir")
+echo "Ensuring compile_commands.json in ${compile_dir}..."
+if ! cmake \
+  -S "$root/native/processing-core" \
+  -B "$compile_dir" \
+  -DCMAKE_BUILD_TYPE=Debug \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0 \
+  -DCMAKE_EXPORT_COMPILE_COMMANDS=ON; then
+  fallback="$root/apps/macos/macos/build/processing-core-tests/compile_commands.json"
+  if [[ -f "$fallback" ]]; then
+    echo "warning: build-lint configure failed; falling back to ${fallback}" >&2
+    compile_dir="$(dirname "$fallback")"
+    compile_db="$fallback"
+  else
+    echo "error: compile_commands.json not found after CMake configure" >&2
+    exit 1
+  fi
 fi
 
-find "$root/native" \( -name '*.cpp' -o -name '*.h' \) \
-  -not -path '*/build/*' \
-  -print0 | xargs -0 "$clang_tidy" "${extra_args[@]}"
+if [[ ! -f "$compile_db" ]]; then
+  echo "error: compile_commands.json not found at ${compile_db}" >&2
+  exit 1
+fi
+
+# Homebrew の clang-tidy は Apple clang の compile_commands だけでは
+# macOS SDK の C++ 標準ヘッダを解決できないことがある。
+sdk_root="$(xcrun --show-sdk-path 2>/dev/null || true)"
+extra_args=(-p "$compile_dir")
+if [[ -n "$sdk_root" ]]; then
+  extra_args+=(--extra-arg="-isysroot${sdk_root}" --extra-arg=-stdlib=libc++)
+fi
+
+# compile_commands.json に載っている .cpp だけを対象にする。
+# 孤児ソースやヘッダ単独 TU は誤検知・標準ヘッダ未解決の原因になる。
+source_list="$(mktemp)"
+trap 'rm -f "$source_list"' EXIT
+python3 -c '
+import json, sys
+from pathlib import Path
+entries = json.loads(Path(sys.argv[1]).read_text())
+files = sorted({str(Path(e["file"]).resolve()) for e in entries if e.get("file", "").endswith(".cpp")})
+Path(sys.argv[2]).write_text("\0".join(files) + ("\0" if files else ""))
+' "$compile_db" "$source_list"
+
+if [[ ! -s "$source_list" ]]; then
+  echo "error: no C++ sources listed in ${compile_db}" >&2
+  exit 1
+fi
+
+xargs -0 "$clang_tidy" "${extra_args[@]}" < "$source_list"
