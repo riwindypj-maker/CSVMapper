@@ -171,9 +171,20 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
   }, [session, snapshot.revision, setActiveRegion]);
 
   useEffect(() => {
+    // snapshot 差し替え時は、進行中の cell path 応答も無効化する。
+    cellPathRequestId.current += 1;
     setSelectedCell(null);
     setCellPath(null);
   }, [snapshot.previewResult?.snapshotId]);
+
+  useEffect(() => {
+    if (!snapshot.previewStale) {
+      return;
+    }
+    // 再プレビュー中は snapshotId が変わらないため、stale 化でも進行中要求を無効化する。
+    cellPathRequestId.current += 1;
+    setCellPath(null);
+  }, [snapshot.previewStale]);
 
   const placedColumnIds = useMemo(() => {
     const set = new Set<string>();
@@ -204,7 +215,11 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
     }
     const run = async () => {
       try {
-        await mediator.selectAndLoadCsv();
+        const outcome = await mediator.selectAndLoadCsv();
+        // 取消・busy では現在の接続操作/フォーカスを維持する。
+        if (outcome !== 'started') {
+          return;
+        }
         setConnectSourceId(null);
         setKeyboardFocusId(null);
       } catch (error) {
@@ -286,8 +301,9 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
     async (rowNumber: number, outputItemId: string) => {
       const requestId = ++cellPathRequestId.current;
       setSelectedCell({ rowNumber, outputItemId });
+      // 新選択の応答が来るまで、前セルの経路を残さない。
+      setCellPath(null);
       if (!mediator || snapshot.previewStale) {
-        setCellPath(null);
         return;
       }
       try {
