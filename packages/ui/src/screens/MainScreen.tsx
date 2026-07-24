@@ -2,7 +2,7 @@
 // ツールバー・左右ペイン・キャンバス・プレビューを接続するために存在する。
 // RELEVANT FILES: ../components/Toolbar.tsx, ../canvas/CanvasViewport.tsx, ../hooks/useMappingSession.ts
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import {
   JobMediator,
@@ -159,6 +159,8 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
     outputItemId: string;
   } | null>(null);
   const [cellPath, setCellPath] = useState<CellPathResult | null>(null);
+  // 連続選択で古い inspectCellPath 応答が上書きしないよう世代を持つ。
+  const cellPathRequestId = useRef(0);
 
   useEffect(() => {
     const requested = session.consumeFocusRequest();
@@ -201,9 +203,15 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
       return;
     }
     const run = async () => {
-      await mediator.selectAndLoadCsv();
-      setConnectSourceId(null);
-      setKeyboardFocusId(null);
+      try {
+        await mediator.selectAndLoadCsv();
+        setConnectSourceId(null);
+        setKeyboardFocusId(null);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'CSVの読込に失敗しました';
+        Alert.alert('CSV読込エラー', message);
+      }
     };
     if (editable) {
       Alert.alert(
@@ -251,22 +259,50 @@ function MainScreenBody({ session, gateway }: MainScreenProps) {
     if (!mediator || !editable) {
       return;
     }
-    void mediator.startPreview(snapshot.previewRowCount);
+    void (async () => {
+      try {
+        await mediator.startPreview(snapshot.previewRowCount);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'プレビューに失敗しました';
+        Alert.alert('プレビューエラー', message);
+      }
+    })();
   }, [mediator, editable, snapshot.previewRowCount]);
 
   const handleCancelPreview = useCallback(() => {
-    void mediator?.cancelActive();
+    void (async () => {
+      try {
+        await mediator?.cancelActive();
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'プレビューの中止に失敗しました';
+        Alert.alert('プレビュー中止エラー', message);
+      }
+    })();
   }, [mediator]);
 
   const handleSelectCell = useCallback(
     async (rowNumber: number, outputItemId: string) => {
+      const requestId = ++cellPathRequestId.current;
       setSelectedCell({ rowNumber, outputItemId });
       if (!mediator || snapshot.previewStale) {
         setCellPath(null);
         return;
       }
-      const path = await mediator.inspectCellPath(rowNumber, outputItemId);
-      setCellPath(path);
+      try {
+        const path = await mediator.inspectCellPath(rowNumber, outputItemId);
+        // より新しい選択が始まっていれば、この応答は捨てる。
+        if (requestId !== cellPathRequestId.current) {
+          return;
+        }
+        setCellPath(path);
+      } catch {
+        if (requestId !== cellPathRequestId.current) {
+          return;
+        }
+        setCellPath(null);
+      }
     },
     [mediator, snapshot.previewStale],
   );

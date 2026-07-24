@@ -8,11 +8,14 @@ import {
   IssueSeverity,
   NodeKind,
   PREVIEW_ROW_OPTIONS,
+  ProcessingErrorCode,
+  type ProcessingEvent,
 } from '@csvmapper/contracts';
 import {
   InMemoryProcessingGateway,
   JobMediator,
   MappingSession,
+  type ProcessingGateway,
 } from '../src';
 
 const FILE = {
@@ -369,6 +372,45 @@ describe('PREVIEW application', () => {
           i.severity === IssueSeverity.Warning,
       ),
     ).toBe(true);
+    mediator.dispose();
+  });
+
+  test('結果欠落の completed は失敗扱いで phase を戻す', async () => {
+    const session = new MappingSession();
+    let emit: ((event: ProcessingEvent) => void) | null = null;
+    const gateway: ProcessingGateway = {
+      pickInputFile: async () => ({ cancelled: true }),
+      inspectInput: async operationId => {
+        emit?.({
+          type: 'completed',
+          operationId,
+          kind: 'inspectInput',
+        });
+      },
+      preview: async () => undefined,
+      inspectCellPath: async () => ({
+        snapshotId: '',
+        rowNumber: 1,
+        outputItemId: '',
+        steps: [],
+      }),
+      cancel: async () => ({ accepted: false }),
+      subscribe: listener => {
+        emit = listener;
+        return () => {
+          emit = null;
+        };
+      },
+    };
+    const mediator = new JobMediator(session, gateway);
+    await mediator.startInspect(FILE);
+    expect(session.getPhase()).toBe('unloaded');
+    expect(session.getJobProgress()).toBeNull();
+    expect(session.getLastFailure()?.errorCode).toBe(
+      ProcessingErrorCode.INTERNAL,
+    );
+    // 進行中ジョブが残っていないこと。
+    await expect(mediator.startInspect(FILE)).resolves.toBe('started');
     mediator.dispose();
   });
 });

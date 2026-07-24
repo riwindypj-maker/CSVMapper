@@ -47,6 +47,8 @@ describe('computeAutoLayout', () => {
       expect(session.autoLayout().ok).toBe(true);
       const after = session.getNodes().map(n => ({ ...n.position }));
       expect(after).not.toEqual(before);
+      // JSON 代替は layout 呼び出し中だけ使い、グローバルを汚染しない。
+      expect(globalThis.structuredClone).toBeUndefined();
 
       // LR 整列なので入力より出力の x が大きい。
       const byId = new Map(session.getNodes().map(n => [n.id, n.position]));

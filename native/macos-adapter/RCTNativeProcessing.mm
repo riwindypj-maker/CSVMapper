@@ -184,6 +184,41 @@ NSString *ProcessingErrorFromGraph(csvmapper::GraphErrorCode code) {
   return @"GRAPH_INVALID";
 }
 
+/** contracts の GraphErrorCode 文字列と揃える。 */
+NSString *GraphErrorCodeName(csvmapper::GraphErrorCode code) {
+  switch (code) {
+  case csvmapper::GraphErrorCode::None:
+    return @"None";
+  case csvmapper::GraphErrorCode::DuplicateInput:
+    return @"DuplicateInput";
+  case csvmapper::GraphErrorCode::OutputAsSource:
+    return @"OutputAsSource";
+  case csvmapper::GraphErrorCode::InputAsTarget:
+    return @"InputAsTarget";
+  case csvmapper::GraphErrorCode::SelfLoop:
+    return @"SelfLoop";
+  case csvmapper::GraphErrorCode::WouldCreateCycle:
+    return @"WouldCreateCycle";
+  case csvmapper::GraphErrorCode::TooManyInputs:
+    return @"TooManyInputs";
+  case csvmapper::GraphErrorCode::TerminalMismatch:
+    return @"TerminalMismatch";
+  case csvmapper::GraphErrorCode::InvalidJoinOrder:
+    return @"InvalidJoinOrder";
+  case csvmapper::GraphErrorCode::MissingRequiredConfig:
+    return @"MissingRequiredConfig";
+  case csvmapper::GraphErrorCode::MissingInput:
+    return @"MissingInput";
+  case csvmapper::GraphErrorCode::NoOutputs:
+    return @"NoOutputs";
+  case csvmapper::GraphErrorCode::NoOutputName:
+    return @"NoOutputName";
+  case csvmapper::GraphErrorCode::DuplicateOutputName:
+    return @"DuplicateOutputName";
+  }
+  return @"None";
+}
+
 } // namespace
 
 @implementation RCTNativeProcessing {
@@ -442,12 +477,17 @@ RCT_EXPORT_METHOD(preview : (NSString *)operationId file : (NSDictionary *)file 
     } else {
       NSMutableArray *columns = [NSMutableArray array];
       for (const auto &col : result.columns) {
-        [columns addObject:@{
+        NSMutableDictionary *column = [@{
           @"outputItemId" : [NSString stringWithUTF8String:col.outputItemId.c_str()],
           @"displayName" : FromU16(col.displayName),
           @"hasError" : @(col.hasError),
           @"issueMessage" : [NSString stringWithUTF8String:col.issueMessage.c_str()],
-        }];
+        } mutableCopy];
+        // PreviewColumn 契約に合わせ、問題がある列だけ issueCode を載せる。
+        if (col.issueCode != csvmapper::GraphErrorCode::None) {
+          column[@"issueCode"] = GraphErrorCodeName(col.issueCode);
+        }
+        [columns addObject:column];
       }
       NSMutableArray *pages = [NSMutableArray array];
       for (const auto &page : result.pages) {

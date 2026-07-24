@@ -8,6 +8,7 @@ import {
   GraphIssue,
   InspectInputResultDto,
   IssueSeverity,
+  ProcessingErrorCode,
   ProcessingEvent,
 } from '@csvmapper/contracts';
 
@@ -62,7 +63,15 @@ export class JobMediator {
     const operationId = newOperationId('inspect');
     this.activeOperationId = operationId;
     this.session.beginLoading(file, operationId);
-    await this.gateway.inspectInput(operationId, file);
+    try {
+      await this.gateway.inspectInput(operationId, file);
+    } catch (error) {
+      // Promise 拒否時はイベントが来ないため、ここで phase / jobProgress を戻す。
+      this.failActiveJob(
+        error instanceof Error ? error.message : '読込に失敗しました',
+      );
+      throw error;
+    }
     return 'started';
   }
 
@@ -82,7 +91,14 @@ export class JobMediator {
     const operationId = newOperationId('preview');
     this.activeOperationId = operationId;
     this.session.beginPreviewing(operationId, snapshot.snapshotId);
-    await this.gateway.preview(operationId, file, snapshot, normalized);
+    try {
+      await this.gateway.preview(operationId, file, snapshot, normalized);
+    } catch (error) {
+      this.failActiveJob(
+        error instanceof Error ? error.message : 'プレビューに失敗しました',
+      );
+      throw error;
+    }
     return 'started';
   }
 
@@ -137,9 +153,24 @@ export class JobMediator {
         this.applyInspectSuccess(event.inspectResult);
       } else if (event.kind === 'preview' && event.previewResult) {
         this.session.commitPreviewResult(event.previewResult);
+      } else {
+        // 結果欠落の completed だと clearActive だけでは phase が残る。
+        this.session.failOrCancelJob('failed', {
+          errorCode: ProcessingErrorCode.INTERNAL,
+          message: '処理結果が不完全です',
+        });
       }
       this.clearActive();
     }
+  }
+
+  /** Gateway 呼び出し拒否時など、イベント無しで進行中ジョブを失敗終了する。 */
+  private failActiveJob(message: string): void {
+    this.session.failOrCancelJob('failed', {
+      errorCode: ProcessingErrorCode.INTERNAL,
+      message,
+    });
+    this.clearActive();
   }
 
   private applyInspectSuccess(result: InspectInputResultDto): void {

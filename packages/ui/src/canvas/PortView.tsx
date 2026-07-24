@@ -116,12 +116,8 @@ export function PortView({
         const pageX = event.nativeEvent.pageX;
         const pageY = event.nativeEvent.pageY;
         lastPage.current = null;
-        if (dragged.current) {
-          callbacksRef.current.onDragEnd?.(pageX, pageY);
-        } else {
-          // ジェスチャ奪取時も下書きが残らないようキャンセル扱いにする。
-          callbacksRef.current.onDragEnd?.(pageX, pageY);
-        }
+        // ジェスチャ奪取時はドラッグ有無に関わらず onDragEnd でキャンセル/確定を委譲する。
+        callbacksRef.current.onDragEnd?.(pageX, pageY);
         dragged.current = false;
       },
     }),

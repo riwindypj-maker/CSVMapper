@@ -387,7 +387,6 @@ export class MappingSession {
     this.loadingRollbackFile = null;
     this.previewingRollbackSnapshotId = null;
     this.coreIssues = [];
-    this.inputFile = this.inputFile;
     this.phase = columns.length === 0 ? 'unloaded' : 'editable';
     this.refreshIssues();
     this.notify();
