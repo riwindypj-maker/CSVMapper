@@ -8,5 +8,5 @@ export { evaluateGraph } from './graph/evaluate';
 export { computeAutoLayout } from './layout/autoLayout';
 export { HistoryStack } from './session/history';
 export type { DocumentSnapshot } from './session/history';
-export { MappingSession } from './session/store';
-export type { TransientUiState } from './session/store';
+export { MappingSession, MIN_ZOOM, MAX_ZOOM } from './session/store';
+export type { TransientUiState, SessionPhase } from './session/store';

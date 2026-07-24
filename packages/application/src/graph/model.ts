@@ -177,19 +177,35 @@ export class GraphModel {
     if (!node) {
       return fail(GraphErrorCode.UnknownNode, 'ノードが存在しない');
     }
-    const link = this.links.get(id)!;
-    const edgeIds = [...link.inputEdgeIds, ...link.outputEdgeIds];
-    for (const edgeId of edgeIds) {
-      this.removeEdge(edgeId);
+    this.removeNodeInternal(id, node);
+    return ok();
+  }
+
+  /**
+   * 複数ノードを 1 コマンドとして削除する。
+   * 存在確認を先に完了し、失敗時は状態を変えない。
+   */
+  removeNodes(ids: readonly NodeId[]): CommandResult {
+    if (ids.length === 0) {
+      return ok();
     }
-    if (node.kind === NodeKind.Input && node.inputColumnId) {
-      this.placedInputColumns.delete(node.inputColumnId);
+    const unique: NodeId[] = [];
+    const seen = new Set<NodeId>();
+    for (const id of ids) {
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      unique.push(id);
     }
-    if (node.kind === NodeKind.Output) {
-      this.outputOrder = this.outputOrder.filter(oid => oid !== id);
+    for (const id of unique) {
+      if (!this.nodes.has(id)) {
+        return fail(GraphErrorCode.UnknownNode, `ノードが存在しない: ${id}`);
+      }
     }
-    this.nodes.delete(id);
-    this.links.delete(id);
+    for (const id of unique) {
+      this.removeNodeInternal(id, this.nodes.get(id)!);
+    }
     return ok();
   }
 
@@ -342,6 +358,22 @@ export class GraphModel {
 
   isAcyclic(): boolean {
     return this.topologicalSort().length === this.nodes.size;
+  }
+
+  private removeNodeInternal(id: NodeId, node: GraphNode): void {
+    const link = this.links.get(id)!;
+    const edgeIds = [...link.inputEdgeIds, ...link.outputEdgeIds];
+    for (const edgeId of edgeIds) {
+      this.removeEdge(edgeId);
+    }
+    if (node.kind === NodeKind.Input && node.inputColumnId) {
+      this.placedInputColumns.delete(node.inputColumnId);
+    }
+    if (node.kind === NodeKind.Output) {
+      this.outputOrder = this.outputOrder.filter(oid => oid !== id);
+    }
+    this.nodes.delete(id);
+    this.links.delete(id);
   }
 
   private addEdgeInternal(id: EdgeId, from: NodeId, to: NodeId): CommandResult {
