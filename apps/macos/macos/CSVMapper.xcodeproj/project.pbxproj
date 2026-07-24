@@ -12,6 +12,8 @@
 		514201522437B4B40078DB4F /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 514201512437B4B40078DB4F /* Assets.xcassets */; };
 		514201552437B4B40078DB4F /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 514201532437B4B40078DB4F /* Main.storyboard */; };
 		514201582437B4B40078DB4F /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 514201572437B4B40078DB4F /* main.m */; };
+		A1000001C5VPREVIEW0001 /* RCTNativeProcessing.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1000002C5VPREVIEW0002 /* RCTNativeProcessing.mm */; };
+		A1000003C5VPREVIEW0003 /* MacOSFileSystemAdapter.mm in Sources */ = {isa = PBXBuildFile; fileRef = A1000004C5VPREVIEW0004 /* MacOSFileSystemAdapter.mm */; };
 		B8E07612D55A4F891F25DAA8 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 549899D401764A451C77CE5E /* PrivacyInfo.xcprivacy */; };
 		D48B5619C26B66BCC9DE87DD /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 549899D401764A451C77CE5E /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
@@ -28,6 +30,9 @@
 		514201592437B4B40078DB4F /* CSVMapper.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CSVMapper.entitlements; sourceTree = "<group>"; };
 		5288808D5ADEF3AB23DFAE27 /* Pods-CSVMapper-macOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CSVMapper-macOS.debug.xcconfig"; path = "Target Support Files/Pods-CSVMapper-macOS/Pods-CSVMapper-macOS.debug.xcconfig"; sourceTree = "<group>"; };
 		549899D401764A451C77CE5E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		A1000002C5VPREVIEW0002 /* RCTNativeProcessing.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = RCTNativeProcessing.mm; path = "../../../native/macos-adapter/RCTNativeProcessing.mm"; sourceTree = SOURCE_ROOT; };
+		A1000004C5VPREVIEW0004 /* MacOSFileSystemAdapter.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = MacOSFileSystemAdapter.mm; path = "../../../native/macos-adapter/MacOSFileSystemAdapter.mm"; sourceTree = SOURCE_ROOT; };
+		A1000005C5VPREVIEW0005 /* RCTNativeProcessing.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = RCTNativeProcessing.h; path = "../../../native/macos-adapter/RCTNativeProcessing.h"; sourceTree = SOURCE_ROOT; };
 		A9AB387BC4C972A4A4780A9E /* libPods-CSVMapper-macOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-CSVMapper-macOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		DEFDF1D8245F73B164985A30 /* Pods-CSVMapper-macOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-CSVMapper-macOS.release.xcconfig"; path = "Target Support Files/Pods-CSVMapper-macOS/Pods-CSVMapper-macOS.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
@@ -76,6 +81,9 @@
 			children = (
 				5142014B2437B4B30078DB4F /* AppDelegate.h */,
 				5142014C2437B4B30078DB4F /* AppDelegate.mm */,
+				A1000005C5VPREVIEW0005 /* RCTNativeProcessing.h */,
+				A1000002C5VPREVIEW0002 /* RCTNativeProcessing.mm */,
+				A1000004C5VPREVIEW0004 /* MacOSFileSystemAdapter.mm */,
 				514201512437B4B40078DB4F /* Assets.xcassets */,
 				514201532437B4B40078DB4F /* Main.storyboard */,
 				514201562437B4B40078DB4F /* Info.plist */,
@@ -353,6 +361,8 @@
 			files = (
 				514201582437B4B40078DB4F /* main.m in Sources */,
 				5142014D2437B4B30078DB4F /* AppDelegate.mm in Sources */,
+				A1000001C5VPREVIEW0001 /* RCTNativeProcessing.mm in Sources */,
+				A1000003C5VPREVIEW0003 /* MacOSFileSystemAdapter.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -424,19 +434,23 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../../../native/processing-core/include",
+					"$(SRCROOT)/../../../native/macos-adapter",
 				);
 				INFOPLIST_FILE = "CSVMapper-macOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(SDKROOT)/usr/lib/swift",
 					"$(inherited)",
 					"$(DERIVED_FILE_DIR)/processing-core/lib/$(CONFIGURATION)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lcsvmapper_processing_core",
+					"-licui18n",
+					"-licuuc",
+					"-licudata",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = CSVMapper;
@@ -457,19 +471,23 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../../../native/processing-core/include",
+					"$(SRCROOT)/../../../native/macos-adapter",
 				);
 				INFOPLIST_FILE = "CSVMapper-macOS/Info.plist";
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				LIBRARY_SEARCH_PATHS = (
 					"$(SDKROOT)/usr/lib/swift",
 					"$(inherited)",
 					"$(DERIVED_FILE_DIR)/processing-core/lib/$(CONFIGURATION)",
 				);
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-ObjC",
 					"-lcsvmapper_processing_core",
+					"-licui18n",
+					"-licuuc",
+					"-licudata",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.$(PRODUCT_NAME:rfc1034identifier)";
 				PRODUCT_NAME = CSVMapper;

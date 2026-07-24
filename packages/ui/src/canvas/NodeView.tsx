@@ -30,11 +30,17 @@ export interface NodeViewProps {
   inputConnectable: boolean;
   outputConnectable: boolean;
   dragOffset?: { x: number; y: number };
+  /** ワールド View 左上に対応するモデル座標。描画位置だけずらす。 */
+  originX?: number;
+  originY?: number;
   zoom: number;
   onSelect: (additive: boolean) => void;
   onMoveDelta: (dx: number, dy: number) => void;
   onMoveEnd: () => void;
   onPortPress: (direction: 'input' | 'output') => void;
+  onPortDragStart: (direction: 'input' | 'output') => void;
+  onPortDragMove: (pageX: number, pageY: number) => void;
+  onPortDragEnd: (pageX: number, pageY: number) => void;
 }
 
 function kindStyle(kind: NodeKind) {
@@ -74,14 +80,19 @@ export function NodeView({
   inputConnectable,
   outputConnectable,
   dragOffset,
+  originX = 0,
+  originY = 0,
   zoom,
   onSelect,
   onMoveDelta,
   onMoveEnd,
   onPortPress,
+  onPortDragStart,
+  onPortDragMove,
+  onPortDragEnd,
 }: NodeViewProps) {
-  const x = node.position.x + (dragOffset?.x ?? 0);
-  const y = node.position.y + (dragOffset?.y ?? 0);
+  const x = node.position.x + (dragOffset?.x ?? 0) - originX;
+  const y = node.position.y + (dragOffset?.y ?? 0) - originY;
   const connectionCount =
     (incomingConnected ? 1 : 0) + (outgoingConnected ? 1 : 0);
 
@@ -207,6 +218,9 @@ export function NodeView({
           connected={outgoingConnected}
           connectable={outputConnectable}
           onPress={() => onPortPress('output')}
+          onDragStart={() => onPortDragStart('output')}
+          onDragMove={onPortDragMove}
+          onDragEnd={onPortDragEnd}
         />
       ) : null}
     </View>

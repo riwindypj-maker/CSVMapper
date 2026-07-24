@@ -42,6 +42,7 @@ export const layout = {
   rightPaneWidth: 320,
   previewHeight: 240,
   canvasMinWidth: 480,
+  canvasScrollbarSize: 12,
   nodeWidth: 148,
   nodeHeight: 60,
   portSize: 14,

@@ -9,6 +9,8 @@ export const labels = {
   toolbar: 'ツールバー',
   leftPane: '素材領域',
   canvas: 'マッピングキャンバス',
+  canvasScrollHorizontal: 'キャンバス横スクロール',
+  canvasScrollVertical: 'キャンバス縦スクロール',
   rightPane: '出力とプロパティ領域',
   preview: 'プレビュー領域',
   inputSearch: '入力項目検索',
@@ -24,10 +26,22 @@ export const labels = {
   resetSession: '初期化',
   undo: '元に戻す',
   redo: 'やり直す',
+  deleteSelection: '削除',
   autoLayout: '自動整列',
-  previewAction: 'プレビュー（準備中）',
-  openIssues: 'エラー確認（準備中）',
-  exportCsv: 'CSV出力（準備中）',
+  autoLayoutFailedTitle: '自動整列できません',
+  previewAction: 'プレビュー',
+  cancelPreview: 'プレビューを中止',
+  previewRunning: 'プレビュー処理中',
+  openIssues: 'エラー確認',
+  closeIssues: '問題一覧を閉じる',
+  issueListDialog: 'エラー・警告一覧',
+  focusIssueTarget: '対象へ移動',
+  exportCsv: 'CSV出力',
+  exportComingSoon: 'CSV出力は次工程で実装します',
+  cellPath: 'セル変換経路',
+  cellPathEmpty: 'セルを選択すると変換経路を表示します',
+  previewTable: 'プレビュー表',
+  fileSummary: '入力ファイル概要',
   addOutput: '出力項目を追加',
   zoomIn: 'ズームイン',
   zoomOut: 'ズームアウト',
@@ -99,4 +113,16 @@ export function portAccessibilityLabel(params: {
   const connected = params.connected ? '接続済み' : '未接続';
   const connectable = params.connectable ? '接続可能' : '接続不可';
   return `${params.nodeName}の${dir}、${connected}、${connectable}`;
+}
+
+export function edgeAccessibilityLabel(params: {
+  fromName: string;
+  toName: string;
+  selected: boolean;
+}): string {
+  const parts = [`接続線`, `${params.fromName}から${params.toName}`];
+  if (params.selected) {
+    parts.push('選択中');
+  }
+  return parts.join('、');
 }

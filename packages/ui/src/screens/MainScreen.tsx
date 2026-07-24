@@ -5,12 +5,16 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import {
+  JobMediator,
   MappingSession,
   MAX_ZOOM,
   MIN_ZOOM,
+  type ProcessingGateway,
 } from '@csvmapper/application';
 import {
   BlockInfo,
+  CellPathResult,
+  GraphIssue,
   GraphNode,
   InputColumn,
   NodeId,
@@ -21,6 +25,7 @@ import { labels } from '../accessibility/labels';
 import { CanvasViewport } from '../canvas/CanvasViewport';
 import { BlockToolbox } from '../components/BlockToolbox';
 import { InputColumnList } from '../components/InputColumnList';
+import { IssueListDialog } from '../components/IssueListDialog';
 import { OutputColumnList } from '../components/OutputColumnList';
 import { PreviewShell } from '../components/PreviewShell';
 import { PropertyPanel } from '../components/PropertyPanel';
@@ -43,21 +48,6 @@ const keyHandlers = new WeakMap<
   (event: ShortcutEvent) => void
 >();
 
-/** デモ用のモック入力列（TurboModule 前の代替）。 */
-const MOCK_INPUT_COLUMNS: readonly InputColumn[] = [
-  { id: 'col-name', displayName: '名前' },
-  { id: 'col-email', displayName: 'メール' },
-  { id: 'col-city', displayName: '市区町村' },
-  { id: 'col-note', displayName: '備考' },
-];
-
-const MOCK_SAMPLES = new Map<string, string>([
-  ['col-name', '山田太郎'],
-  ['col-email', 'yamada@example.com'],
-  ['col-city', '横浜市'],
-  ['col-note', '  メモ  '],
-]);
-
 /** onLayout 前のフォールバック表示サイズ。 */
 const DEFAULT_VIEWPORT = { width: 800, height: 500 } as const;
 
@@ -66,6 +56,8 @@ const FIT_PAD_SCREEN = 40;
 
 export interface MainScreenProps {
   session: MappingSession;
+  /** 省略時は CSV 選択・プレビューが無効（テスト用の列投入は session API 直呼び）。 */
+  gateway?: ProcessingGateway;
 }
 
 function nextId(prefix: string): string {
@@ -111,20 +103,62 @@ export function computeFitAllView(
   };
 }
 
-function MainScreenBody({ session }: MainScreenProps) {
+/**
+ * ズーム変更後もビューポート中心のワールド座標を保つ。
+ * scroll を据え置くと左上原点基準で拡大縮小して見えるため、差分を scroll へ返す。
+ */
+export function computeZoomAroundViewCenter(
+  currentZoom: number,
+  nextZoom: number,
+  scrollX: number,
+  scrollY: number,
+  viewW: number,
+  viewH: number,
+): { zoom: number; scrollX: number; scrollY: number } {
+  const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, nextZoom));
+  if (zoom === currentZoom || currentZoom <= 0) {
+    return { zoom: currentZoom, scrollX, scrollY };
+  }
+  return {
+    zoom,
+    scrollX: scrollX + (viewW / 2) * (1 / zoom - 1 / currentZoom),
+    scrollY: scrollY + (viewH / 2) * (1 / zoom - 1 / currentZoom),
+  };
+}
+
+function MainScreenBody({ session, gateway }: MainScreenProps) {
   const snapshot = useMappingSession(session);
   const editable = snapshot.phase === 'editable';
+  const previewing = snapshot.phase === 'previewing';
+  const loading = snapshot.phase === 'loading';
   const { activeRegion, setActiveRegion, focusNextRegion, focusPreviousRegion } =
     useFocusRegions();
 
-  const [previewRowCount, setPreviewRowCount] = useState(100);
-  const [previewStale, setPreviewStale] = useState(true);
+  const mediator = useMemo(() => {
+    if (!gateway) {
+      return null;
+    }
+    return new JobMediator(session, gateway);
+  }, [session, gateway]);
+
+  useEffect(() => {
+    return () => {
+      mediator?.dispose();
+    };
+  }, [mediator]);
+
   const [keyboardFocusId, setKeyboardFocusId] = useState<NodeId | null>(null);
   const [connectSourceId, setConnectSourceId] = useState<NodeId | null>(null);
   const [viewportSize, setViewportSize] = useState<{
     width: number;
     height: number;
   }>(DEFAULT_VIEWPORT);
+  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [selectedCell, setSelectedCell] = useState<{
+    rowNumber: number;
+    outputItemId: string;
+  } | null>(null);
+  const [cellPath, setCellPath] = useState<CellPathResult | null>(null);
 
   useEffect(() => {
     const requested = session.consumeFocusRequest();
@@ -135,10 +169,9 @@ function MainScreenBody({ session }: MainScreenProps) {
   }, [session, snapshot.revision, setActiveRegion]);
 
   useEffect(() => {
-    if (snapshot.revision > 1 && editable) {
-      setPreviewStale(true);
-    }
-  }, [snapshot.revision, editable]);
+    setSelectedCell(null);
+    setCellPath(null);
+  }, [snapshot.previewResult?.snapshotId]);
 
   const placedColumnIds = useMemo(() => {
     const set = new Set<string>();
@@ -162,15 +195,16 @@ function MainScreenBody({ session }: MainScreenProps) {
     [snapshot.nodes, snapshot.ui.selection],
   );
 
-  const applyCsvReload = useCallback(() => {
-    session.replaceInputColumns(MOCK_INPUT_COLUMNS);
-    setPreviewStale(true);
-    setConnectSourceId(null);
-    setKeyboardFocusId(null);
-  }, [session]);
-
   const handleSelectCsv = useCallback(() => {
-    // 編集可能中の再読込はマッピングと履歴を破棄するため確認する。
+    if (!mediator) {
+      Alert.alert('CSV選択', 'Processing Gateway が未接続です');
+      return;
+    }
+    const run = async () => {
+      await mediator.selectAndLoadCsv();
+      setConnectSourceId(null);
+      setKeyboardFocusId(null);
+    };
     if (editable) {
       Alert.alert(
         labels.reloadCsvConfirmTitle,
@@ -180,27 +214,29 @@ function MainScreenBody({ session }: MainScreenProps) {
           {
             text: labels.confirmReload,
             style: 'destructive',
-            onPress: applyCsvReload,
+            onPress: () => {
+              void run();
+            },
           },
         ],
       );
       return;
     }
-    applyCsvReload();
-  }, [editable, applyCsvReload]);
+    void run();
+  }, [editable, mediator]);
 
   const applyReset = useCallback(() => {
     session.resetSession();
-    setPreviewStale(true);
     setConnectSourceId(null);
     setKeyboardFocusId(null);
+    setSelectedCell(null);
+    setCellPath(null);
   }, [session]);
 
   const handleReset = useCallback(() => {
     if (!editable) {
       return;
     }
-    // 初期化は入力 CSV を含むセッション全体を破棄するため確認する。
     Alert.alert(labels.resetConfirmTitle, labels.resetConfirmMessage, [
       { text: labels.cancel, style: 'cancel' },
       {
@@ -210,6 +246,45 @@ function MainScreenBody({ session }: MainScreenProps) {
       },
     ]);
   }, [editable, applyReset]);
+
+  const handlePreview = useCallback(() => {
+    if (!mediator || !editable) {
+      return;
+    }
+    void mediator.startPreview(snapshot.previewRowCount);
+  }, [mediator, editable, snapshot.previewRowCount]);
+
+  const handleCancelPreview = useCallback(() => {
+    void mediator?.cancelActive();
+  }, [mediator]);
+
+  const handleSelectCell = useCallback(
+    async (rowNumber: number, outputItemId: string) => {
+      setSelectedCell({ rowNumber, outputItemId });
+      if (!mediator || snapshot.previewStale) {
+        setCellPath(null);
+        return;
+      }
+      const path = await mediator.inspectCellPath(rowNumber, outputItemId);
+      setCellPath(path);
+    },
+    [mediator, snapshot.previewStale],
+  );
+
+  const handleFocusIssue = useCallback(
+    (issue: GraphIssue) => {
+      if (issue.nodeId) {
+        session.requestFocus(issue.nodeId);
+        session.setSelection([issue.nodeId]);
+      }
+      setIssuesOpen(false);
+    },
+    [session],
+  );
+
+  const handleExportCsv = useCallback(() => {
+    Alert.alert(labels.exportCsv, labels.exportComingSoon);
+  }, []);
 
   const handlePlaceColumn = useCallback(
     (column: InputColumn) => {
@@ -289,21 +364,62 @@ function MainScreenBody({ session }: MainScreenProps) {
       viewportSize.width,
       viewportSize.height,
     );
-    session.setZoom(next.zoom);
-    session.setScroll(next.scrollX, next.scrollY);
+    session.setViewTransform(next.zoom, next.scrollX, next.scrollY);
   }, [session, snapshot.nodes, viewportSize.height, viewportSize.width]);
+
+  const applyZoomFactor = useCallback(
+    (factor: number) => {
+      const next = computeZoomAroundViewCenter(
+        snapshot.ui.zoom,
+        snapshot.ui.zoom * factor,
+        snapshot.ui.scrollX,
+        snapshot.ui.scrollY,
+        viewportSize.width,
+        viewportSize.height,
+      );
+      session.setViewTransform(next.zoom, next.scrollX, next.scrollY);
+    },
+    [
+      session,
+      snapshot.ui.scrollX,
+      snapshot.ui.scrollY,
+      snapshot.ui.zoom,
+      viewportSize.height,
+      viewportSize.width,
+    ],
+  );
+
+  const handleAutoLayout = useCallback(() => {
+    const result = session.autoLayout();
+    if (!result.ok) {
+      Alert.alert(labels.autoLayoutFailedTitle, result.message);
+    }
+  }, [session]);
 
   const deleteSelection = useCallback(() => {
     if (!editable) {
       return;
     }
-    const ids = [...snapshot.ui.selection];
-    if (ids.length === 0) {
+    const nodeIds = [...snapshot.ui.selection];
+    if (nodeIds.length > 0) {
+      const result = session.removeNodes(nodeIds);
+      if (result.ok) {
+        session.setSelection([]);
+        setConnectSourceId(null);
+        setKeyboardFocusId(null);
+      }
       return;
     }
-    session.removeNodes(ids);
-    setConnectSourceId(null);
-  }, [editable, session, snapshot.ui.selection]);
+    const edgeIds = [...snapshot.ui.edgeSelection];
+    if (edgeIds.length === 0) {
+      return;
+    }
+    const result = session.removeEdges(edgeIds);
+    if (result.ok) {
+      session.setEdgeSelection([]);
+      setConnectSourceId(null);
+    }
+  }, [editable, session, snapshot.ui.edgeSelection, snapshot.ui.selection]);
 
   const moveKeyboardFocus = useCallback(
     (dx: number, dy: number) => {
@@ -369,12 +485,12 @@ function MainScreenBody({ session }: MainScreenProps) {
           break;
         case 'zoomIn':
           if (editable) {
-            session.setZoom(snapshot.ui.zoom * 1.1);
+            applyZoomFactor(1.1);
           }
           break;
         case 'zoomOut':
           if (editable) {
-            session.setZoom(snapshot.ui.zoom / 1.1);
+            applyZoomFactor(1 / 1.1);
           }
           break;
         case 'fitAll':
@@ -394,8 +510,8 @@ function MainScreenBody({ session }: MainScreenProps) {
       editable,
       session,
       snapshot.nodes,
-      snapshot.ui.zoom,
       deleteSelection,
+      applyZoomFactor,
       fitAll,
       setActiveRegion,
     ],
@@ -453,10 +569,19 @@ function MainScreenBody({ session }: MainScreenProps) {
     };
   }, [session, onKeyCommand]);
 
+  const progressLabel = snapshot.jobProgress
+    ? `${labels.previewRunning}（${snapshot.jobProgress.recordsProcessed} 件）`
+    : labels.previewRunning;
+
+  const fileSummary =
+    snapshot.inputFile && editable
+      ? `${labels.fileSummary}: ${snapshot.columnCount} 列 / ${snapshot.dataRowCount} 行` +
+        (snapshot.detectedEncoding ? ` / ${snapshot.detectedEncoding}` : '')
+      : null;
+
   const rootProps = {
     style: styles.root,
     accessibilityLabel: labels.mainScreen,
-    // react-native-macos はフォーカス可能な View にだけキーイベントを渡す。
     focusable: true,
     onKeyDown: (event: {
       nativeEvent: {
@@ -480,25 +605,35 @@ function MainScreenBody({ session }: MainScreenProps) {
       <FocusRegion id="toolbar" accessibilityLabel={labels.toolbar} style={styles.toolbar}>
         <Toolbar
           editable={editable}
+          previewing={previewing || loading}
           canUndo={snapshot.canUndo}
           canRedo={snapshot.canRedo}
+          canDelete={
+            snapshot.ui.selection.size > 0 || snapshot.ui.edgeSelection.size > 0
+          }
           errorCount={snapshot.errorCount}
+          warningCount={snapshot.warningCount}
+          canExport={snapshot.canExport}
           onSelectCsv={handleSelectCsv}
           onReset={handleReset}
           onUndo={() => session.undo()}
           onRedo={() => session.redo()}
-          onAutoLayout={() => session.autoLayout()}
-          onZoomIn={() => session.setZoom(snapshot.ui.zoom * 1.1)}
-          onZoomOut={() => session.setZoom(snapshot.ui.zoom / 1.1)}
+          onDelete={deleteSelection}
+          onAutoLayout={handleAutoLayout}
+          onZoomIn={() => applyZoomFactor(1.1)}
+          onZoomOut={() => applyZoomFactor(1 / 1.1)}
           onFitAll={fitAll}
+          onOpenIssues={() => setIssuesOpen(true)}
+          onExportCsv={handleExportCsv}
         />
       </FocusRegion>
 
       <View style={styles.middle}>
         <FocusRegion id="left" accessibilityLabel={labels.leftPane} style={styles.left}>
-          {!editable ? (
+          {!editable && !loading ? (
             <Text style={styles.hint}>{labels.unloadedHint}</Text>
           ) : null}
+          {fileSummary ? <Text style={styles.hint}>{fileSummary}</Text> : null}
           <InputColumnList
             columns={snapshot.inputColumns}
             searchQuery={snapshot.ui.searchQuery}
@@ -518,6 +653,7 @@ function MainScreenBody({ session }: MainScreenProps) {
             edges={snapshot.edges}
             issues={snapshot.issues}
             selection={snapshot.ui.selection}
+            edgeSelection={snapshot.ui.edgeSelection}
             zoom={snapshot.ui.zoom}
             scrollX={snapshot.ui.scrollX}
             scrollY={snapshot.ui.scrollY}
@@ -542,7 +678,7 @@ function MainScreenBody({ session }: MainScreenProps) {
           <PropertyPanel
             selectedNodes={selectedNodes}
             editable={editable}
-            inputSamples={MOCK_SAMPLES}
+            inputSamples={snapshot.inputSamples}
             onChangeOutputName={(id, name) => session.setOutputName(id, name)}
             onChangeBlockConfig={(id, block) => session.setBlockConfig(id, block)}
           />
@@ -552,19 +688,37 @@ function MainScreenBody({ session }: MainScreenProps) {
       <FocusRegion id="preview" accessibilityLabel={labels.preview} style={styles.preview}>
         <PreviewShell
           editable={editable}
-          rowCount={previewRowCount}
-          stale={previewStale}
-          onChangeRowCount={setPreviewRowCount}
+          previewing={previewing}
+          canPreview={!!mediator && editable}
+          rowCount={snapshot.previewRowCount}
+          stale={snapshot.previewStale}
+          result={snapshot.previewResult}
+          progressLabel={progressLabel}
+          cellPath={cellPath}
+          selectedCell={selectedCell}
+          onChangeRowCount={count => session.setPreviewRowCount(count)}
+          onSelectCell={(row, col) => {
+            void handleSelectCell(row, col);
+          }}
+          onPreview={handlePreview}
+          onCancel={handleCancelPreview}
         />
       </FocusRegion>
+
+      <IssueListDialog
+        visible={issuesOpen}
+        issues={snapshot.issues}
+        onClose={() => setIssuesOpen(false)}
+        onFocusIssue={handleFocusIssue}
+      />
     </View>
   );
 }
 
-export function MainScreen({ session }: MainScreenProps) {
+export function MainScreen({ session, gateway }: MainScreenProps) {
   return (
     <FocusRegionProvider>
-      <MainScreenBody session={session} />
+      <MainScreenBody session={session} gateway={gateway} />
     </FocusRegionProvider>
   );
 }
@@ -621,6 +775,8 @@ const styles = StyleSheet.create({
   root: {
     backgroundColor: colors.background,
     flex: 1,
+    // IssueListDialog の absoluteFill オーバーレイを画面全体に載せる基準にする。
+    position: 'relative',
   },
   toolbar: {
     backgroundColor: colors.surface,

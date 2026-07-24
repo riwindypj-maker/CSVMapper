@@ -1,6 +1,6 @@
 // 上部ツールバーの操作ボタン群。
-// CSV 読込モックと編集系コマンドの入口を提供するために存在する。
-// RELEVANT FILES: ../screens/MainScreen.tsx, ../../accessibility/labels.ts
+// CSV 読込・編集操作・問題一覧・出力可否の入口を提供するために存在する。
+// RELEVANT FILES: ../screens/MainScreen.tsx, ../accessibility/labels.ts
 
 import React from 'react';
 import {
@@ -16,17 +16,24 @@ import { colors, spacing, typography } from '../theme/tokens';
 
 export interface ToolbarProps {
   editable: boolean;
+  previewing: boolean;
   canUndo: boolean;
   canRedo: boolean;
+  canDelete: boolean;
   errorCount: number;
+  warningCount: number;
+  canExport: boolean;
   onSelectCsv: () => void;
   onReset: () => void;
   onUndo: () => void;
   onRedo: () => void;
+  onDelete: () => void;
   onAutoLayout: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitAll: () => void;
+  onOpenIssues: () => void;
+  onExportCsv: () => void;
 }
 
 function ToolButton({
@@ -56,39 +63,62 @@ function ToolButton({
 
 export function Toolbar({
   editable,
+  previewing,
   canUndo,
   canRedo,
+  canDelete,
   errorCount,
+  warningCount,
+  canExport,
   onSelectCsv,
   onReset,
   onUndo,
   onRedo,
+  onDelete,
   onAutoLayout,
   onZoomIn,
   onZoomOut,
   onFitAll,
+  onOpenIssues,
+  onExportCsv,
 }: ToolbarProps) {
+  const issueLabel =
+    errorCount > 0
+      ? `${labels.openIssues}（エラー${errorCount}）`
+      : warningCount > 0
+        ? `${labels.openIssues}（警告${warningCount}）`
+        : labels.openIssues;
+
   return (
     <View style={styles.row} accessibilityLabel={labels.toolbar}>
-      <ToolButton label={labels.selectCsv} onPress={onSelectCsv} />
+      <ToolButton
+        label={labels.selectCsv}
+        disabled={previewing}
+        onPress={onSelectCsv}
+      />
       <ToolButton
         label={labels.resetSession}
-        disabled={!editable}
+        disabled={!editable || previewing}
         onPress={onReset}
       />
       <ToolButton
         label={labels.undo}
-        disabled={!editable || !canUndo}
+        disabled={!editable || !canUndo || previewing}
         onPress={onUndo}
       />
       <ToolButton
         label={labels.redo}
-        disabled={!editable || !canRedo}
+        disabled={!editable || !canRedo || previewing}
         onPress={onRedo}
       />
       <ToolButton
+        label={labels.deleteSelection}
+        disabled={!editable || !canDelete || previewing}
+        onPress={onDelete}
+      />
+      <ToolButton
         label={labels.autoLayout}
-        disabled={!editable}
+        disabled={!editable || previewing}
         onPress={onAutoLayout}
       />
       <ToolButton
@@ -106,17 +136,16 @@ export function Toolbar({
         disabled={!editable}
         onPress={onFitAll}
       />
-      <ToolButton label={labels.previewAction} disabled onPress={() => undefined} />
       <ToolButton
-        label={
-          errorCount > 0
-            ? `${labels.openIssues}（エラー${errorCount}）`
-            : labels.openIssues
-        }
-        disabled
-        onPress={() => undefined}
+        label={issueLabel}
+        disabled={!editable && errorCount + warningCount === 0}
+        onPress={onOpenIssues}
       />
-      <ToolButton label={labels.exportCsv} disabled onPress={() => undefined} />
+      <ToolButton
+        label={labels.exportCsv}
+        disabled={!canExport}
+        onPress={onExportCsv}
+      />
     </View>
   );
 }

@@ -95,6 +95,10 @@ class TransformationGraph {
 public:
   TransformationGraph();
   ~TransformationGraph();
+  TransformationGraph(TransformationGraph &&) noexcept;
+  TransformationGraph &operator=(TransformationGraph &&) noexcept;
+  TransformationGraph(const TransformationGraph &) = delete;
+  TransformationGraph &operator=(const TransformationGraph &) = delete;
 
   // 入力項目ノードを追加する。
   std::error_code AddInputNode(const NodeId &id, const std::u16string &displayName);

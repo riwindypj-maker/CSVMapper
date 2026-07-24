@@ -214,18 +214,35 @@ export class GraphModel {
     if (!edge) {
       return fail(GraphErrorCode.UnknownEdge, '接続が存在しない');
     }
-    const toNodeId = edge.to;
-    const fromLink = this.links.get(edge.from);
-    const toLink = this.links.get(edge.to);
-    if (fromLink) {
-      fromLink.outputEdgeIds = fromLink.outputEdgeIds.filter(e => e !== id);
+    this.removeEdgeInternal(id, edge);
+    return ok();
+  }
+
+  /**
+   * 複数接続を 1 コマンドとして削除する。
+   * 存在確認を先に完了し、失敗時は状態を変えない。
+   */
+  removeEdges(ids: readonly EdgeId[]): CommandResult {
+    if (ids.length === 0) {
+      return ok();
     }
-    if (toLink) {
-      toLink.inputEdgeIds = toLink.inputEdgeIds.filter(e => e !== id);
+    const unique: EdgeId[] = [];
+    const seen = new Set<EdgeId>();
+    for (const id of ids) {
+      if (seen.has(id)) {
+        continue;
+      }
+      seen.add(id);
+      unique.push(id);
     }
-    this.edges.delete(id);
-    // Join 入力辺の削除で結合順に欠番が出るため、残辺を 0..n-1 に詰め直す。
-    this.compactJoinOrderIfNeeded(toNodeId);
+    for (const id of unique) {
+      if (!this.edges.has(id)) {
+        return fail(GraphErrorCode.UnknownEdge, `接続が存在しない: ${id}`);
+      }
+    }
+    for (const id of unique) {
+      this.removeEdgeInternal(id, this.edges.get(id)!);
+    }
     return ok();
   }
 
@@ -364,7 +381,10 @@ export class GraphModel {
     const link = this.links.get(id)!;
     const edgeIds = [...link.inputEdgeIds, ...link.outputEdgeIds];
     for (const edgeId of edgeIds) {
-      this.removeEdge(edgeId);
+      const edge = this.edges.get(edgeId);
+      if (edge) {
+        this.removeEdgeInternal(edgeId, edge);
+      }
     }
     if (node.kind === NodeKind.Input && node.inputColumnId) {
       this.placedInputColumns.delete(node.inputColumnId);
@@ -374,6 +394,21 @@ export class GraphModel {
     }
     this.nodes.delete(id);
     this.links.delete(id);
+  }
+
+  private removeEdgeInternal(id: EdgeId, edge: GraphEdge): void {
+    const toNodeId = edge.to;
+    const fromLink = this.links.get(edge.from);
+    const toLink = this.links.get(edge.to);
+    if (fromLink) {
+      fromLink.outputEdgeIds = fromLink.outputEdgeIds.filter(e => e !== id);
+    }
+    if (toLink) {
+      toLink.inputEdgeIds = toLink.inputEdgeIds.filter(e => e !== id);
+    }
+    this.edges.delete(id);
+    // Join 入力辺の削除で結合順に欠番が出るため、残辺を 0..n-1 に詰め直す。
+    this.compactJoinOrderIfNeeded(toNodeId);
   }
 
   private addEdgeInternal(id: EdgeId, from: NodeId, to: NodeId): CommandResult {

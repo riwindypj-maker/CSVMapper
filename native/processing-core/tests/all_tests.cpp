@@ -1,9 +1,10 @@
 // Processing Core のドメインテストをひとつの実行可能ファイルにまとめる。
 // フレームワーク無しで全ドメイン契約を一括実行するために存在する。
-// RELEVANT FILES: csv_format_tests.cpp, csv_inspect_tests.cpp, string_transforms_tests.cpp, transformation_graph_tests.cpp
+// RELEVANT FILES: csv_format_tests.cpp, csv_inspect_tests.cpp, string_transforms_tests.cpp, transformation_graph_tests.cpp, preview_tests.cpp
 
 #include "csvmapper/csv_format.h"
 #include "csvmapper/csv_inspect.h"
+#include "csvmapper/preview.h"
 #include "csvmapper/processing_core.h"
 #include "csvmapper/string_transforms.h"
 #include "csvmapper/transformation_graph.h"
@@ -88,6 +89,16 @@ void TestValidateMissingOutputName();
 void TestRemoveNodeRemovesEdges();
 void TestOutputOrder();
 
+// preview_tests.cpp
+void TestPreviewRowLimitsAndPages();
+void TestPreviewOutputOrderAndUnconnected();
+void TestPreviewCellPathTwoBlocks();
+void TestPreviewColumnConfigErrorKeepsOtherColumns();
+void TestPreviewCycleIsGlobalError();
+void TestPreviewEmojiDoesNotRaiseEncodingError();
+void TestPreviewCancelDoesNotCommit();
+void TestPreviewKeepsOnlyLatestSnapshot();
+
 } // namespace csvmapper
 
 int main() {
@@ -160,6 +171,15 @@ int main() {
   TestValidateMissingOutputName();
   TestRemoveNodeRemovesEdges();
   TestOutputOrder();
+
+  TestPreviewRowLimitsAndPages();
+  TestPreviewOutputOrderAndUnconnected();
+  TestPreviewCellPathTwoBlocks();
+  TestPreviewColumnConfigErrorKeepsOtherColumns();
+  TestPreviewCycleIsGlobalError();
+  TestPreviewEmojiDoesNotRaiseEncodingError();
+  TestPreviewCancelDoesNotCommit();
+  TestPreviewKeepsOnlyLatestSnapshot();
 
   return 0;
 }

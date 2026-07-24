@@ -23,6 +23,7 @@ const MSG: Record<string, string> = {
   [GraphErrorCode.UnconnectedOutput]: '出力項目が未接続',
   [GraphErrorCode.UnusedBlock]: '出力へ到達しない編集ブロック',
   [GraphErrorCode.JoinSingleInput]: '結合ブロックの入力が 1 件だけ',
+  [GraphErrorCode.NoDataRows]: 'データ行がない',
 };
 
 /**
