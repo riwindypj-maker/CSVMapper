@@ -38,11 +38,11 @@ describe('GRAPH-006 Undo/Redo', () => {
     const afterLayout = snapshotPositions(session);
     expect(afterLayout).not.toEqual(afterMove);
 
-    // ズーム・選択は履歴に入れない。
-    session.setZoom(2.5);
+    // ズーム・選択は履歴に入れない（ズームは 25%〜200% にクランプ）。
+    session.setZoom(1.5);
     session.setSelection(['b1', 'out1']);
     session.setScroll(30, 40);
-    expect(session.getTransientUi().zoom).toBe(2.5);
+    expect(session.getTransientUi().zoom).toBe(1.5);
     expect([...session.getTransientUi().selection].sort()).toEqual([
       'b1',
       'out1',
@@ -50,7 +50,7 @@ describe('GRAPH-006 Undo/Redo', () => {
 
     expect(session.undo()).toBe(true);
     expect(snapshotPositions(session)).toEqual(afterMove);
-    expect(session.getTransientUi().zoom).toBe(2.5);
+    expect(session.getTransientUi().zoom).toBe(1.5);
     expect([...session.getTransientUi().selection].sort()).toEqual([
       'b1',
       'out1',
@@ -65,7 +65,47 @@ describe('GRAPH-006 Undo/Redo', () => {
 
     expect(session.redo()).toBe(true);
     expect(snapshotPositions(session)).toEqual(afterLayout);
-    expect(session.getTransientUi().zoom).toBe(2.5);
+    expect(session.getTransientUi().zoom).toBe(1.5);
+  });
+
+  test('空の removeNodes は履歴を増やさない', () => {
+    const session = new MappingSession();
+    session.replaceInputColumns([{ id: 'col-a', displayName: 'a' }]);
+    expect(session.addInputNode('in1', 'col-a', { x: 0, y: 0 }).ok).toBe(true);
+    expect(session.canUndo).toBe(true);
+    const revision = session.getRevision();
+
+    expect(session.removeNodes([]).ok).toBe(true);
+    expect(session.getNodes()).toHaveLength(1);
+    expect(session.canUndo).toBe(true);
+    expect(session.getRevision()).toBe(revision);
+  });
+
+  test('複数ノード削除は 1 つの Undo ステップになる', () => {
+    const session = new MappingSession();
+    session.replaceInputColumns([
+      { id: 'col-a', displayName: 'a' },
+      { id: 'col-b', displayName: 'b' },
+    ]);
+    expect(session.addInputNode('in1', 'col-a', { x: 0, y: 0 }).ok).toBe(true);
+    expect(session.addInputNode('in2', 'col-b', { x: 40, y: 0 }).ok).toBe(true);
+    expect(session.addOutputNode('out1', 'o1', { x: 120, y: 0 }).ok).toBe(true);
+    expect(session.getNodes()).toHaveLength(3);
+
+    expect(session.removeNodes(['in1', 'in2', 'out1']).ok).toBe(true);
+    expect(session.getNodes()).toHaveLength(0);
+    expect(session.canUndo).toBe(true);
+
+    expect(session.undo()).toBe(true);
+    expect(session.getNodes().map(n => n.id).sort()).toEqual([
+      'in1',
+      'in2',
+      'out1',
+    ]);
+    // 個別削除ではないため、もう 1 回の Undo で追加前まで戻らない（追加 3 件は残る）。
+    expect(session.canUndo).toBe(true);
+    expect(session.undo()).toBe(true);
+    expect(session.getNodes()).toHaveLength(2);
   });
 });
 

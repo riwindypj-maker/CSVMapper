@@ -1,6 +1,6 @@
 // React Native Metro のバンドル設定。
 // file: リンクした packages の依存をホスト node_modules から解決するために存在する。
-// RELEVANT FILES: package.json, ../../packages/application/package.json, ../../packages/application/src/layout/autoLayout.ts
+// RELEVANT FILES: package.json, ../../packages/ui/package.json, ../../packages/application/package.json
 
 const path = require('path');
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
@@ -18,15 +18,22 @@ const config = {
   watchFolders: [
     path.resolve(monorepoRoot, 'packages/application'),
     path.resolve(monorepoRoot, 'packages/contracts'),
+    path.resolve(monorepoRoot, 'packages/ui'),
   ],
   resolver: {
     nodeModulesPaths: [path.resolve(projectRoot, 'node_modules')],
     extraNodeModules: {
-      // リンク先実パス解決でもホストに入れた dagre を使えるようにする。
+      // リンク先実パス解決でもホストに入れた依存を使えるようにする。
       '@dagrejs/dagre': path.resolve(
         projectRoot,
         'node_modules/@dagrejs/dagre',
       ),
+      'react-native-svg': path.resolve(
+        projectRoot,
+        'node_modules/react-native-svg',
+      ),
+      react: path.resolve(projectRoot, 'node_modules/react'),
+      'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
     },
   },
 };

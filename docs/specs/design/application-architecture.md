@@ -6,7 +6,7 @@
 
 ## ステータス
 
-macOS 先行で製品実装を許可する。順序 4（`packages/contracts` / `packages/application` のマッピング編集・Jest）は完了。キャンバス UI・`packages/ui`・TurboModule・ホスト配線は後続とする。Windows 環境検証は後回しとし、実装順序のいずれの着手・進行のブロッカーにもしない。Windows ホスト実証と `NFR-ENV-005` を含む両 OS 受入・配布署名は環境用意後に実施し、順序 9 までの残課題として扱う。
+macOS 先行で製品実装を許可する。順序 5（`packages/ui`・メイン画面・キャンバス基本 UI・macOS ホスト配線）は完了。TurboModule・プレビュー実評価・出力ワークフロー・Windows ホストは後続とする。Windows 環境検証は後回しとし、実装順序のいずれの着手・進行のブロッカーにもしない。Windows ホスト実証と `NFR-ENV-005` を含む両 OS 受入・配布署名は環境用意後に実施し、順序 9 までの残課題として扱う。
 
 ## この文書で扱う正本範囲
 

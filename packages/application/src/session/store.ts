@@ -24,6 +24,17 @@ import { validateGraph } from '../graph/validation';
 import { computeAutoLayout } from '../layout/autoLayout';
 import { HistoryStack } from './history';
 
+/** ズーム下限（25%）。 */
+export const MIN_ZOOM = 0.25;
+/** ズーム上限（200%）。 */
+export const MAX_ZOOM = 2;
+
+/**
+ * UI が編集可否を切り替えるための簡易セッション相。
+ * 読込中・プレビュー中の本格状態機械は後続順序で拡張する。
+ */
+export type SessionPhase = 'unloaded' | 'editable';
+
 export interface TransientUiState {
   selection: ReadonlySet<NodeId>;
   searchQuery: string;
@@ -48,6 +59,30 @@ export class MappingSession {
   private zoom = 1;
   private scrollX = 0;
   private scrollY = 0;
+  private revision = 0;
+  private readonly listeners = new Set<() => void>();
+
+  /**
+   * useSyncExternalStore 用の購読。解除関数を返す。
+   */
+  subscribe(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  /** スナップショット比較用の単調増加リビジョン。 */
+  getRevision(): number {
+    return this.revision;
+  }
+
+  /**
+   * 未読込は unloaded、入力列がある場合は editable。
+   */
+  getPhase(): SessionPhase {
+    return this.inputColumns.length === 0 ? 'unloaded' : 'editable';
+  }
 
   getInputColumns(): readonly InputColumn[] {
     return this.inputColumns.map(c => ({ ...c }));
@@ -98,7 +133,12 @@ export class MappingSession {
     this.selection.clear();
     this.searchQuery = '';
     this.focusRequest = null;
+    // マッピング破棄に合わせてビューポートも初期化する（resetSession と同方針）。
+    this.zoom = 1;
+    this.scrollX = 0;
+    this.scrollY = 0;
     this.refreshIssues();
+    this.notify();
   }
 
   /** セッション全体の初期化。履歴も空にする。 */
@@ -113,27 +153,53 @@ export class MappingSession {
     this.scrollX = 0;
     this.scrollY = 0;
     this.issues = [];
+    this.notify();
   }
 
   setSelection(ids: readonly NodeId[]): void {
     this.selection = new Set(ids);
+    this.notify();
   }
 
   setSearchQuery(query: string): void {
     this.searchQuery = query;
+    this.notify();
   }
 
   requestFocus(nodeId: NodeId | null): void {
     this.focusRequest = nodeId;
+    this.notify();
+  }
+
+  /**
+   * フォーカス要求を一度だけ取り出し、内部状態をクリアする。
+   */
+  consumeFocusRequest(): NodeId | null {
+    const id = this.focusRequest;
+    if (id === null) {
+      return null;
+    }
+    this.focusRequest = null;
+    this.notify();
+    return id;
   }
 
   setZoom(zoom: number): void {
-    this.zoom = zoom;
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom));
+    if (clamped === this.zoom) {
+      return;
+    }
+    this.zoom = clamped;
+    this.notify();
   }
 
   setScroll(x: number, y: number): void {
+    if (x === this.scrollX && y === this.scrollY) {
+      return;
+    }
     this.scrollX = x;
     this.scrollY = y;
+    this.notify();
   }
 
   addInputNode(
@@ -181,6 +247,15 @@ export class MappingSession {
     return this.runMutation(g => g.removeNode(id));
   }
 
+  /** 複数選択削除を 1 つの Undo ステップにする。 */
+  removeNodes(ids: readonly NodeId[]): CommandResult {
+    // 空配列は GraphModel が ok を返すため、ここで弾かないと空の Undo が残る。
+    if (ids.length === 0) {
+      return { ok: true };
+    }
+    return this.runMutation(g => g.removeNodes(ids));
+  }
+
   addEdge(id: EdgeId, from: NodeId, to: NodeId): CommandResult {
     return this.runMutation(g => g.addEdge(id, from, to));
   }
@@ -225,6 +300,7 @@ export class MappingSession {
     }
     this.graph = restored.graph;
     this.refreshIssues();
+    this.notify();
     return true;
   }
 
@@ -235,6 +311,7 @@ export class MappingSession {
     }
     this.graph = restored.graph;
     this.refreshIssues();
+    this.notify();
     return true;
   }
 
@@ -277,10 +354,18 @@ export class MappingSession {
     }
     this.history.pushBeforeChange({ graph: before });
     this.refreshIssues();
+    this.notify();
     return result;
   }
 
   private refreshIssues(): void {
     this.issues = validateGraph(this.graph);
+  }
+
+  private notify(): void {
+    this.revision += 1;
+    for (const listener of this.listeners) {
+      listener();
+    }
   }
 }

@@ -25,10 +25,12 @@
   "dependencies": {
     "@csvmapper/application": "file:../../packages/application",
     "@csvmapper/contracts": "file:../../packages/contracts",
+    "@csvmapper/ui": "file:../../packages/ui",
     "@dagrejs/dagre": "3.0.0",
     "react": "19.1.4",
     "react-native": "0.81.6",
-    "react-native-macos": "0.81.9"
+    "react-native-macos": "0.81.9",
+    "react-native-svg": "15.15.5"
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
