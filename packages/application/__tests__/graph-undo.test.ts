@@ -68,6 +68,19 @@ describe('GRAPH-006 Undo/Redo', () => {
     expect(session.getTransientUi().zoom).toBe(1.5);
   });
 
+  test('空の removeNodes は履歴を増やさない', () => {
+    const session = new MappingSession();
+    session.replaceInputColumns([{ id: 'col-a', displayName: 'a' }]);
+    expect(session.addInputNode('in1', 'col-a', { x: 0, y: 0 }).ok).toBe(true);
+    expect(session.canUndo).toBe(true);
+    const revision = session.getRevision();
+
+    expect(session.removeNodes([]).ok).toBe(true);
+    expect(session.getNodes()).toHaveLength(1);
+    expect(session.canUndo).toBe(true);
+    expect(session.getRevision()).toBe(revision);
+  });
+
   test('複数ノード削除は 1 つの Undo ステップになる', () => {
     const session = new MappingSession();
     session.replaceInputColumns([

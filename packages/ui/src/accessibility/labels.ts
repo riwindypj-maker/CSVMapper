@@ -18,6 +18,7 @@ export const labels = {
   propertyPanel: 'プロパティ領域',
   previewRowCount: 'プレビュー件数',
   previewStale: 'プレビュー未更新',
+  previewCurrent: 'プレビュー最新',
   previewEmpty: 'プレビューはまだありません',
   selectCsv: 'CSVを選択',
   resetSession: '初期化',

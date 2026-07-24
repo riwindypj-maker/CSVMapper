@@ -249,6 +249,10 @@ export class MappingSession {
 
   /** 複数選択削除を 1 つの Undo ステップにする。 */
   removeNodes(ids: readonly NodeId[]): CommandResult {
+    // 空配列は GraphModel が ok を返すため、ここで弾かないと空の Undo が残る。
+    if (ids.length === 0) {
+      return { ok: true };
+    }
     return this.runMutation(g => g.removeNodes(ids));
   }
 

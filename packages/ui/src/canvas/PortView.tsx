@@ -23,13 +23,15 @@ export function PortView({
   connectable,
   onPress,
 }: PortViewProps) {
+  // 空の displayName だと複数端子のアクセシブル名が区別できない。
+  const accessibleNodeName = nodeName || '(未命名)';
   const blocked = !connectable;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={portAccessibilityLabel({
         direction,
-        nodeName,
+        nodeName: accessibleNodeName,
         connected,
         connectable,
       })}

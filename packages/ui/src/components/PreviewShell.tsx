@@ -28,10 +28,12 @@ export function PreviewShell({
       <View style={styles.header}>
         <Text style={styles.heading}>プレビュー</Text>
         <Text
-          accessibilityLabel={stale ? labels.previewStale : 'プレビュー最新'}
-          style={styles.status}
+          accessibilityLabel={
+            stale ? labels.previewStale : labels.previewCurrent
+          }
+          style={[styles.status, stale ? styles.statusStale : styles.statusCurrent]}
         >
-          {stale ? '未更新' : '未実行'}
+          {stale ? '未更新' : '最新'}
         </Text>
       </View>
       <View style={styles.rowCountRow} accessibilityLabel={labels.previewRowCount}>
@@ -129,8 +131,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   status: {
-    color: colors.warning,
     fontSize: typography.small,
     fontWeight: '600',
+  },
+  statusCurrent: {
+    color: colors.textMuted,
+  },
+  statusStale: {
+    color: colors.warning,
   },
 });

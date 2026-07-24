@@ -50,6 +50,7 @@ export function OutputColumnList({
       ) : (
         outputs.map((node, index) => {
           const selected = selectedIds.has(node.id);
+          const displayName = node.displayName || '(未命名)';
           return (
             <View
               key={node.id}
@@ -57,16 +58,16 @@ export function OutputColumnList({
             >
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`出力項目 ${node.displayName}`}
+                accessibilityLabel={`出力項目 ${displayName}`}
                 accessibilityState={{ selected }}
                 onPress={() => onSelect(node.id)}
                 style={styles.nameButton}
               >
-                <Text style={styles.name}>{node.displayName || '(未命名)'}</Text>
+                <Text style={styles.name}>{displayName}</Text>
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${node.displayName}を上へ`}
+                accessibilityLabel={`${displayName}を上へ`}
                 disabled={!editable || index === 0}
                 onPress={() => onMoveUp(node.id)}
                 style={styles.orderButton}
@@ -75,7 +76,7 @@ export function OutputColumnList({
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`${node.displayName}を下へ`}
+                accessibilityLabel={`${displayName}を下へ`}
                 disabled={!editable || index === outputs.length - 1}
                 onPress={() => onMoveDown(node.id)}
                 style={styles.orderButton}
