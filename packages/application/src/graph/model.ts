@@ -214,11 +214,14 @@ export class GraphModel {
   }
 
   moveNodes(positions: ReadonlyMap<NodeId, CanvasPoint>): CommandResult {
-    for (const [id, point] of positions) {
-      const node = this.nodes.get(id);
-      if (!node) {
+    // CommandFailure 時は状態を変えないため、存在確認を書き込み前に完了する。
+    for (const id of positions.keys()) {
+      if (!this.nodes.has(id)) {
         return fail(GraphErrorCode.UnknownNode, `ノードが存在しない: ${id}`);
       }
+    }
+    for (const [id, point] of positions) {
+      const node = this.nodes.get(id)!;
       node.position = {
         x: Math.round(point.x),
         y: Math.round(point.y),
@@ -289,18 +292,16 @@ export class GraphModel {
     }
     const expected = new Set(link.inputEdgeIds);
     const seen = new Set<EdgeId>();
-    for (let i = 0; i < orderedEdgeIds.length; i++) {
-      const edgeId = orderedEdgeIds[i];
-      if (!expected.has(edgeId) || seen.has(edgeId)) {
+    // CommandFailure 時は状態を変えないため、検証完了後にだけ joinOrder を書く。
+    for (const edgeId of orderedEdgeIds) {
+      if (!expected.has(edgeId) || seen.has(edgeId) || !this.edges.has(edgeId)) {
         return fail(GraphErrorCode.InvalidJoinOrder, '結合順が不正である');
       }
       seen.add(edgeId);
-      const edge = this.edges.get(edgeId);
-      if (!edge) {
-        return fail(GraphErrorCode.InvalidJoinOrder, '結合順の辺が存在しない');
-      }
-      edge.joinOrder = i;
     }
+    orderedEdgeIds.forEach((edgeId, i) => {
+      this.edges.get(edgeId)!.joinOrder = i;
+    });
     return ok();
   }
 
@@ -350,7 +351,7 @@ export class GraphModel {
     const fromNode = this.nodes.get(from);
     const toNode = this.nodes.get(to);
     if (!fromNode || !toNode) {
-      return fail(GraphErrorCode.TerminalMismatch, '接続端点が存在しない');
+      return fail(GraphErrorCode.UnknownNode, '接続端点が存在しない');
     }
     if (fromNode.kind === NodeKind.Output) {
       return fail(GraphErrorCode.OutputAsSource, '出力項目を接続元にできない');

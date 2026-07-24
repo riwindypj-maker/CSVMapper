@@ -66,7 +66,9 @@ export function validateGraph(graph: GraphModel): GraphIssue[] {
           message: MSG[GraphErrorCode.NoOutputName],
         });
       } else {
-        const existing = outputNames.get(node.displayName);
+        // 空文字判定と同じく trim 後の名前で重複を見る。
+        const trimmedName = node.displayName.trim();
+        const existing = outputNames.get(trimmedName);
         if (existing) {
           push({
             code: GraphErrorCode.DuplicateOutputName,
@@ -75,7 +77,7 @@ export function validateGraph(graph: GraphModel): GraphIssue[] {
             message: MSG[GraphErrorCode.DuplicateOutputName],
           });
         } else {
-          outputNames.set(node.displayName, node.id);
+          outputNames.set(trimmedName, node.id);
         }
       }
       if (graph.getInputEdgeIds(node.id).length === 0) {
