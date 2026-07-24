@@ -1,0 +1,8 @@
+# リポジトリ全体の生成物を除外する。
+# 各ホスト・パッケージの依存キャッシュを混入させないために存在する。
+# RELEVANT FILES: packages/*/package.json, apps/macos/.gitignore
+
+node_modules/
+.DS_Store
+*.log
+coverage/

@@ -6,7 +6,7 @@
 
 ## ステータス
 
-macOS 先行で製品実装を許可する。順序 3 は共有 C++ Processing Core の CSV 読込（`inspectInput`）と C++ テストに限定し、Windows ホスト実証・TurboModule・UI は後続とする。`NFR-ENV-005` を含む両 OS 受入と配布署名は順序 9 まで確定基本設計の残課題として扱う。
+macOS 先行で製品実装を許可する。順序 4（`packages/contracts` / `packages/application` のマッピング編集・Jest）は完了。キャンバス UI・`packages/ui`・TurboModule・ホスト配線は後続とする。Windows 環境検証は後回しとし、実装順序のいずれの着手・進行のブロッカーにもしない。Windows ホスト実証と `NFR-ENV-005` を含む両 OS 受入・配布署名は環境用意後に実施し、順序 9 までの残課題として扱う。
 
 ## この文書で扱う正本範囲
 
@@ -195,11 +195,11 @@ tests/
 - Windows の Store 利用有無と本番署名方式
 - macOS の DMG 生成ツール
 
-上記は順序 3（macOS 上の Processing Core 読込実装）のブロッカーにしない。
+上記および Windows 環境検証は、実装順序のいずれの着手・進行のブロッカーにもしない。Windows ホスト実証は環境用意後、順序 9 までの残課題として扱う。
 
 ## 質問事項
 
-なし。未決定事項は技術検証と配布方針確認で解消する。順序 3 は Core のみ先行し、Windows / UI 境界の確定は後続工程で本書を更新する。
+なし。未決定事項は技術検証と配布方針確認で解消する。順序 4 は contracts / application のみ先行し、UI・TurboModule・Windows 境界の確定は後続工程で本書を更新する。
 
 ## 関連ドキュメント
 
