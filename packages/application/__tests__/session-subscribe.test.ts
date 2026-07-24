@@ -71,4 +71,17 @@ describe('MappingSession subscribe / phase', () => {
     expect(ui.scrollX).toBe(0);
     expect(ui.scrollY).toBe(0);
   });
+
+  test('setViewTransform は zoom と scroll を一度に通知する', () => {
+    const session = new MappingSession();
+    const listener = jest.fn();
+    session.subscribe(listener);
+
+    session.setViewTransform(1.5, 20, 30);
+    expect(listener).toHaveBeenCalledTimes(1);
+    const ui = session.getTransientUi();
+    expect(ui.zoom).toBe(1.5);
+    expect(ui.scrollX).toBe(20);
+    expect(ui.scrollY).toBe(30);
+  });
 });

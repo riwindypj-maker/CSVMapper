@@ -1,27 +1,49 @@
-// 下部プレビュー枠と件数選択のシェル。
-// 実評価は順序6のため、枠と状態表示だけを担うために存在する。
-// RELEVANT FILES: ../screens/MainScreen.tsx, ../accessibility/labels.ts
+// 下部プレビュー枠と件数選択・表・経路のシェル。
+// 手動プレビュー結果と処理中表示をまとめるために存在する。
+// RELEVANT FILES: PreviewTable.tsx, CellPathPanel.tsx, ../screens/MainScreen.tsx
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import type { CellPathResult, PreviewResult } from '@csvmapper/contracts';
+import { PREVIEW_ROW_OPTIONS } from '@csvmapper/contracts';
 
 import { labels } from '../accessibility/labels';
 import { colors, spacing, typography } from '../theme/tokens';
+import { CellPathPanel } from './CellPathPanel';
+import { PreviewTable } from './PreviewTable';
 
-export const PREVIEW_ROW_OPTIONS = [100, 500, 1000] as const;
+export { PREVIEW_ROW_OPTIONS };
 
 export interface PreviewShellProps {
   editable: boolean;
+  previewing: boolean;
+  canPreview: boolean;
   rowCount: number;
   stale: boolean;
+  result: PreviewResult | null;
+  progressLabel?: string;
+  cellPath: CellPathResult | null;
+  selectedCell: { rowNumber: number; outputItemId: string } | null;
   onChangeRowCount: (count: number) => void;
+  onSelectCell: (rowNumber: number, outputItemId: string) => void;
+  onPreview: () => void;
+  onCancel?: () => void;
 }
 
 export function PreviewShell({
   editable,
+  previewing,
+  canPreview,
   rowCount,
   stale,
+  result,
+  progressLabel,
+  cellPath,
+  selectedCell,
   onChangeRowCount,
+  onSelectCell,
+  onPreview,
+  onCancel,
 }: PreviewShellProps) {
   return (
     <View style={styles.container} accessibilityLabel={labels.preview}>
@@ -35,6 +57,44 @@ export function PreviewShell({
         >
           {stale ? '未更新' : '最新'}
         </Text>
+        {/* 状態表示の直後に実行ボタンを置き、見出し→最新/未更新→実行の読み順にする。 */}
+        {!previewing ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={labels.previewAction}
+            accessibilityState={{ disabled: !canPreview }}
+            disabled={!canPreview}
+            onPress={onPreview}
+            style={[
+              styles.previewButton,
+              !canPreview ? styles.disabled : null,
+            ]}
+          >
+            <Text
+              style={[
+                styles.previewButtonText,
+                !canPreview ? styles.previewButtonTextDisabled : null,
+              ]}
+            >
+              {labels.previewAction}
+            </Text>
+          </Pressable>
+        ) : null}
+        {previewing ? (
+          <View style={styles.progressRow}>
+            <Text style={styles.progress}>{progressLabel ?? labels.previewRunning}</Text>
+            {onCancel ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={labels.cancelPreview}
+                onPress={onCancel}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelText}>中止</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </View>
       <View style={styles.rowCountRow} accessibilityLabel={labels.previewRowCount}>
         <Text style={styles.label}>件数</Text>
@@ -45,25 +105,34 @@ export function PreviewShell({
               key={option}
               accessibilityRole="button"
               accessibilityLabel={`プレビュー件数 ${option}`}
-              accessibilityState={{ selected, disabled: !editable }}
-              disabled={!editable}
+              accessibilityState={{ selected, disabled: !editable || previewing }}
+              disabled={!editable || previewing}
               onPress={() => onChangeRowCount(option)}
               style={[
                 styles.chip,
                 selected ? styles.chipSelected : null,
-                !editable ? styles.disabled : null,
+                !editable || previewing ? styles.disabled : null,
               ]}
             >
               <Text style={styles.chipText}>{option}</Text>
             </Pressable>
           );
         })}
+        {result ? (
+          <Text style={styles.meta}>
+            {result.evaluatedRowCount} 行表示
+          </Text>
+        ) : null}
       </View>
       <View style={styles.body}>
-        <Text style={styles.empty}>{labels.previewEmpty}</Text>
-        <Text style={styles.hint}>
-          プレビュー評価と経路表示は後続工程で接続します。
-        </Text>
+        <View style={styles.tablePane}>
+          <PreviewTable
+            result={result}
+            selectedCell={selectedCell}
+            onSelectCell={onSelectCell}
+          />
+        </View>
+        <CellPathPanel path={cellPath} />
       </View>
     </View>
   );
@@ -76,8 +145,20 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 1,
     flex: 1,
-    justifyContent: 'center',
-    padding: spacing.md,
+    flexDirection: 'row',
+    padding: spacing.sm,
+  },
+  cancelButton: {
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  cancelText: {
+    color: colors.text,
+    fontSize: typography.small,
   },
   chip: {
     borderColor: colors.border,
@@ -101,29 +182,50 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-  empty: {
-    color: colors.text,
-    fontSize: typography.body,
-    marginBottom: spacing.xs,
-  },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
   heading: {
     color: colors.text,
     fontSize: typography.body,
     fontWeight: '600',
-  },
-  hint: {
-    color: colors.textMuted,
-    fontSize: typography.small,
+    marginRight: spacing.sm,
   },
   label: {
     color: colors.textMuted,
     fontSize: typography.small,
+  },
+  meta: {
+    color: colors.textMuted,
+    fontSize: typography.small,
+    marginLeft: spacing.sm,
+  },
+  previewButton: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    marginLeft: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  previewButtonText: {
+    color: colors.text,
+    fontSize: typography.small,
+  },
+  previewButtonTextDisabled: {
+    color: colors.textMuted,
+  },
+  progress: {
+    color: colors.accent,
+    fontSize: typography.small,
+  },
+  progressRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginLeft: 'auto',
   },
   rowCountRow: {
     alignItems: 'center',
@@ -139,5 +241,8 @@ const styles = StyleSheet.create({
   },
   statusStale: {
     color: colors.warning,
+  },
+  tablePane: {
+    flex: 1,
   },
 });

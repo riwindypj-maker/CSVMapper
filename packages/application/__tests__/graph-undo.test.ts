@@ -107,6 +107,34 @@ describe('GRAPH-006 Undo/Redo', () => {
     expect(session.undo()).toBe(true);
     expect(session.getNodes()).toHaveLength(2);
   });
+
+  test('複数接続削除は 1 つの Undo ステップになる', () => {
+    const session = new MappingSession();
+    session.replaceInputColumns([{ id: 'col-a', displayName: 'a' }]);
+    expect(session.addInputNode('in1', 'col-a', { x: 0, y: 0 }).ok).toBe(true);
+    expect(session.addOutputNode('out1', 'o1', { x: 200, y: 0 }).ok).toBe(true);
+    expect(session.addOutputNode('out2', 'o2', { x: 200, y: 80 }).ok).toBe(true);
+    expect(session.addEdge('e1', 'in1', 'out1').ok).toBe(true);
+    expect(session.addEdge('e2', 'in1', 'out2').ok).toBe(true);
+
+    expect(session.removeEdges(['e1', 'e2']).ok).toBe(true);
+    expect(session.getEdges()).toHaveLength(0);
+
+    expect(session.undo()).toBe(true);
+    expect(session.getEdges().map(e => e.id).sort()).toEqual(['e1', 'e2']);
+  });
+
+  test('接続線選択とノード選択は排他', () => {
+    const session = new MappingSession();
+    session.setSelection(['n1']);
+    session.setEdgeSelection(['e1']);
+    expect(session.getTransientUi().selection.size).toBe(0);
+    expect([...session.getTransientUi().edgeSelection]).toEqual(['e1']);
+
+    session.setSelection(['n2']);
+    expect([...session.getTransientUi().selection]).toEqual(['n2']);
+    expect(session.getTransientUi().edgeSelection.size).toBe(0);
+  });
 });
 
 function snapshotPositions(

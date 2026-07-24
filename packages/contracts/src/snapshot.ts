@@ -1,13 +1,13 @@
-// 処理スナップショットとコマンド結果の契約を定義する。
+// 編集グラフの写しとコマンド結果の契約を定義する。
 // Application が状態を変更不能な形で受け渡すために存在する。
-// RELEVANT FILES: nodes.ts, edges.ts, issues.ts
+// RELEVANT FILES: nodes.ts, edges.ts, issues.ts, preview.ts
 
 import type { GraphEdge } from './edges';
 import type { GraphErrorCode } from './issues';
 import type { GraphNode, InputColumn } from './nodes';
 import type { NodeId } from './ids';
 
-/** 編集中グラフの変更不能な写し。 */
+/** 編集中グラフの変更不能な写し（処理スナップショットとは別）。 */
 export interface GraphSnapshot {
   inputColumns: readonly InputColumn[];
   nodes: readonly GraphNode[];

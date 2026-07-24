@@ -21,6 +21,8 @@ const config = {
     path.resolve(monorepoRoot, 'packages/ui'),
   ],
   resolver: {
+    // packages/ui 配下の react を拾うと Invalid hook call になるため、階層探索を止める。
+    disableHierarchicalLookup: true,
     nodeModulesPaths: [path.resolve(projectRoot, 'node_modules')],
     extraNodeModules: {
       // リンク先実パス解決でもホストに入れた依存を使えるようにする。
@@ -34,6 +36,10 @@ const config = {
       ),
       react: path.resolve(projectRoot, 'node_modules/react'),
       'react-native': path.resolve(projectRoot, 'node_modules/react-native'),
+      'react-native-macos': path.resolve(
+        projectRoot,
+        'node_modules/react-native-macos',
+      ),
     },
   },
 };

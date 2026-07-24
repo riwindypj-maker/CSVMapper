@@ -208,6 +208,8 @@ public:
 
 TransformationGraph::TransformationGraph() : impl_(std::make_unique<Impl>()) {}
 TransformationGraph::~TransformationGraph() = default;
+TransformationGraph::TransformationGraph(TransformationGraph &&) noexcept = default;
+TransformationGraph &TransformationGraph::operator=(TransformationGraph &&) noexcept = default;
 
 std::error_code TransformationGraph::AddInputNode(const NodeId &id, const std::u16string &displayName) {
   if (impl_->nodes.count(id))

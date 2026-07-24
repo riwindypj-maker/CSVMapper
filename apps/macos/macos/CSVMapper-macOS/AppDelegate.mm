@@ -1,6 +1,6 @@
 // macOS の React Native アプリケーション起動処理を構成する。
-// JavaScriptホストと共有 Processing Core のリンク境界を初期化するために存在する。
-// RELEVANT FILES: AppDelegate.h, ../../../../native/processing-core/include/csvmapper/processing_core.h, ../CSVMapper.xcodeproj/project.pbxproj
+// JavaScriptホストと共有 Processing Core / NativeProcessing のリンク境界を初期化するために存在する。
+// RELEVANT FILES: AppDelegate.h, ../../../../native/processing-core/include/csvmapper/processing_core.h, ../../../../native/macos-adapter/RCTNativeProcessing.h
 
 #import "AppDelegate.h"
 
@@ -9,6 +9,9 @@
 #import <ReactAppDependencyProvider/RCTAppDependencyProvider.h>
 
 #include <csvmapper/processing_core.h>
+
+// RCTNativeProcessing は RCT_EXPORT_MODULE で自動登録される。
+#import "RCTNativeProcessing.h"
 
 static NSString *const CSVMapperWindowFrameAutosaveName = @"CSVMapperMainWindow";
 
@@ -37,6 +40,7 @@ static NSString *const CSVMapperWindowFrameAutosaveName = @"CSVMapperMainWindow"
   [self.window setFrameAutosaveName:CSVMapperWindowFrameAutosaveName];
 
   NSLog(@"CSVMapper Processing Core: %s", csvmapper::processing_core_version());
+  NSLog(@"CSVMapper NativeProcessing module registered");
 }
 
 - (NSURL *)sourceURLForBridge:(RCTBridge *)bridge {

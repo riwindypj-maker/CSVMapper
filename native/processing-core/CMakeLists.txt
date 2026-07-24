@@ -48,6 +48,8 @@ add_library(csvmapper_processing_core STATIC
   src/csv_inspect.cpp
   src/string_transforms.cpp
   src/transformation_graph.cpp
+  src/filesystem_port.cpp
+  src/preview.cpp
 )
 
 target_include_directories(csvmapper_processing_core
@@ -77,6 +79,7 @@ if(PROJECT_IS_TOP_LEVEL)
     tests/csv_inspect_tests.cpp
     tests/string_transforms_tests.cpp
     tests/transformation_graph_tests.cpp
+    tests/preview_tests.cpp
   )
   target_link_libraries(processing_core_tests PRIVATE csvmapper_processing_core)
   target_include_directories(processing_core_tests PRIVATE tests)

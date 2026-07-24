@@ -25,6 +25,8 @@ export enum GraphErrorCode {
   JoinSingleInput = 'JoinSingleInput',
   UnknownNode = 'UnknownNode',
   UnknownEdge = 'UnknownEdge',
+  /** ヘッダーのみでデータ行が 0 件のときの警告。 */
+  NoDataRows = 'NoDataRows',
 }
 
 /** 問題の重大度。同一要素で両方に該当する場合はエラーのみ表示する。 */
